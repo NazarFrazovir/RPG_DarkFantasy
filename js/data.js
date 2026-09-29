@@ -45,8 +45,8 @@ const ENEMIES = {
   skeleton: { name: 'Кістяний Воїн', hp: 34, speed: 62, dmg: 9, r: 11, range: 22, wind: 0.45, cd: 1.0, xp: 10, ai: 'melee' },
   ghoul:    { name: 'Гуль', hp: 24, speed: 118, dmg: 7, r: 10, range: 20, wind: 0.25, cd: 0.7, xp: 8, ai: 'melee' },
   cultist:  { name: 'Культист Безодні', hp: 26, speed: 55, dmg: 9, r: 10, range: 0, wind: 0.5, cd: 1.7, xp: 12, ai: 'ranged' },
-  brute:    { name: 'Плоть-Голем', hp: 120, speed: 46, dmg: 22, r: 16, range: 32, wind: 0.75, cd: 1.6, xp: 30, ai: 'melee', kbRes: 0.7 },
-  boss:     { name: 'Король Мальгорат', hp: 1400, speed: 58, dmg: 26, r: 26, xp: 400, ai: 'boss', kbRes: 1 },
+  brute:    { name: 'Плоть-Голем', hp: 120, speed: 46, dmg: 22, r: 20, range: 32, wind: 0.75, cd: 1.6, xp: 30, ai: 'melee', kbRes: 0.7 },
+  boss:     { name: 'Король Мальгорат', hp: 1400, speed: 58, dmg: 26, r: 28, xp: 400, ai: 'boss', kbRes: 1 },
 };
 
 const LEVELS = [

@@ -59,6 +59,7 @@ const Sfx = {
       this.master.gain.value = this.muted ? 0 : 0.5;
       this.master.connect(this.ctx.destination);
       this.startAmbient();
+      if (typeof Music !== 'undefined') Music.init();
     } catch (e) { this.ctx = null; }
   },
   toggle() {
@@ -70,7 +71,7 @@ const Sfx = {
     [55, 82.4].forEach((f, i) => {
       const o = c.createOscillator(), g = c.createGain(), l = c.createOscillator(), lg = c.createGain();
       o.type = 'sawtooth'; o.frequency.value = f;
-      g.gain.value = 0.018;
+      g.gain.value = 0.007;
       l.frequency.value = 0.07 + i * 0.05; lg.gain.value = 0.012;
       l.connect(lg); lg.connect(g.gain);
       const flt = c.createBiquadFilter(); flt.type = 'lowpass'; flt.frequency.value = 220;
