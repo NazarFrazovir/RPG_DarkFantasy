@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Попіл Ашторна — Dark Fantasy RPG</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<!-- Головне меню -->
+<div id="menu" class="screen">
+  <h1>ПОПІЛ АШТОРНА</h1>
+  <p class="tagline">Корона голодна. Жар у тобі — ще ні.</p>
+  <button id="btnNew" class="btn">Нова гра</button>
+  <div class="controls">
+    <b>WASD</b> — рух · <b>ЛКМ</b> — атака · <b>ПКМ / Q</b> — здібність · <b>Пробіл</b> — ухилення<br>
+    <b>F</b> — зілля · <b>E</b> — взаємодія · <b>Esc</b> — пауза · <b>M</b> — звук
+  </div>
+</div>
+
+<!-- Вибір класу -->
+<div id="classes" class="screen hidden">
+  <h2>Обери свій шлях</h2>
+  <div id="classCards"></div>
+  <button id="btnStart" class="btn" disabled>Вирушити у Попіл</button>
+</div>
+
+<!-- Діалоги -->
+<div id="dialog" class="hidden">
+  <div class="who"></div>
+  <div class="txt"></div>
+  <div class="choices"></div>
+  <div class="hint">[E] / клік — далі</div>
+</div>
+
+<!-- Вибір перка -->
+<div id="perks" class="screen hidden">
+  <h2>Новий рівень!</h2>
+  <p class="tagline">Оберіть дар (1 / 2 / 3)</p>
+  <div id="perkCards"></div>
+</div>
+
+<!-- Пауза / смерть / фінал -->
+<div id="pause" class="screen hidden">
+  <h2>Пауза</h2>
+  <button id="btnResume" class="btn">Продовжити</button>
+</div>
+<div id="dead" class="screen hidden">
+  <h1 class="red">ТИ ПОМЕР</h1>
+  <p class="tagline">Жар згасає… але не остаточно.</p>
+  <button id="btnRevive" class="btn">Воскреснути</button>
+</div>
+<div id="ending" class="screen hidden">
+  <h1 id="endTitle"></h1>
+  <p id="endText" class="endtext"></p>
+  <p id="endStats" class="tagline"></p>
+  <button id="btnAgain" class="btn">Грати знову</button>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
