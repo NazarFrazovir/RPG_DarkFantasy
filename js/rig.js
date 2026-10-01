@@ -201,6 +201,15 @@ function tint(col) {
   const l = (n[0] + n[1] + n[2]) / 3; return `rgb(${Math.round(l * 0.55)},${Math.min(255, Math.round(l * 1.15 + 20))},${Math.round(l * 0.85)})`;
 }
 
+// кольоровий силует (для підсвічування): кеш по спрайту та кольору
+const SIL = new Map();
+function silhouette(img, color) {
+  let m = SIL.get(img); if (!m) { m = new Map(); SIL.set(img, m); }
+  let c = m.get(color); if (c) return c;
+  c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const g = c.getContext('2d');
+  g.drawImage(img, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = color; g.fillRect(0, 0, c.width, c.height); m.set(color, c); return c;
+}
+
 // ---------- Малювання персонажа у світі ----------
 // o: anim, idx, face, scale, flash, alpha, ox, oy, rot, sx, sy, nodir
 function drawChar(name, x, y, o = {}) {
@@ -211,6 +220,7 @@ function drawChar(name, x, y, o = {}) {
   if (o.alpha != null) ctx.globalAlpha *= o.alpha;
   if (o.rot) ctx.rotate(o.rot);
   ctx.scale((flip ? -1 : 1) * (o.sx || 1), o.sy || 1);
+  if (o.outline) { const sil = silhouette(img, o.outline), pa = ctx.globalAlpha; ctx.globalAlpha = pa * (o.outlineA === undefined ? 1 : o.outlineA); [[-1, 0], [1, 0], [0, -1], [0, 1]].forEach(([dx, dy]) => ctx.drawImage(sil, -w / 2 + dx * sc, -h + dy * sc, w, ch.size * sc)); ctx.globalAlpha = pa; }
   if (o.cut) { const cut = Math.floor(o.cut * ch.size); ctx.drawImage(img, 0, cut, ch.size, ch.size - cut, -w / 2, -h + cut * sc, w, (ch.size - cut) * sc); }
   else ctx.drawImage(img, -w / 2, -h, w, ch.size * sc);
   ctx.restore();

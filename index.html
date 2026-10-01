@@ -10,6 +10,7 @@
 </head>
 <body>
 <canvas id="game"></canvas>
+<div id="fade"></div>
 
 <!-- Головне меню -->
 <div id="menu" class="screen">
@@ -30,7 +31,7 @@
     <button id="btnSound" class="mbtn" style="--i:3">Звук: увімк.</button>
   </nav>
   <div id="audioHint" class="audioHint">♪ Клікни будь-де — щоб увімкнути музику</div>
-  <footer class="foot">v0.6 · WASD · ЛКМ · ПКМ · Пробіл</footer>
+  <footer class="foot">v0.7 · WASD · ЛКМ · ПКМ · Пробіл</footer>
 </div>
 
 <!-- Керування -->
@@ -53,7 +54,7 @@
 <div id="classes" class="screen hidden">
   <h2>Обери свій шлях</h2>
   <div id="classCards"></div>
-  <button id="btnStart" class="btn" disabled>Вирушити у Попіл</button>
+  <div class="row"><button id="btnBackCls" class="btn ghost">← Назад</button><button id="btnStart" class="btn" disabled>Вирушити у Попіл</button></div>
 </div>
 
 <!-- Діалоги -->

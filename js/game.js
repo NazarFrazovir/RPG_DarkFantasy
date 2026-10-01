@@ -162,7 +162,7 @@ function startLevel(i) {
     props.push(portal);
     inter.push({ x: portal.x, y: portal.y, r: 50, label: 'Увійти в портал', act: () => {
       if (!G.portalOpen) { float(P.x, P.y - 24, 'Портал замкнено — здолай вартового', '#cc6666'); return; }
-      const next = G.level + 1; startLevel(next); introLevel(next);
+      if (G.fading) return; const next = G.level + 1; Sfx.play('level'); fade(() => { startLevel(next); introLevel(next); }, { out: 550, hold: 200, inn: 800 });
     }, dyn: () => (G.portalOpen ? 'Увійти в портал' : 'Портал замкнено') });
     // сувої лору
     cfg.lore.forEach((text, k) => {
@@ -617,19 +617,50 @@ function choosePerk(pk) {
 
 // ---------- Меню / потік гри ----------
 let selClass = null;
+const fadeEl = $('#fade');
+// затемнення: pre — затримка до чорного, out — згасання, hold — пауза в чорному, inn — проявлення
+function fade(cb, o = {}) {
+  const { pre = 0, out = 600, hold = 150, inn = 700 } = o;
+  if (G.fading) return; G.fading = true;
+  setTimeout(() => {
+    fadeEl.style.transitionDuration = out + 'ms'; fadeEl.classList.add('on');
+    setTimeout(() => { cb(); setTimeout(() => { fadeEl.style.transitionDuration = inn + 'ms'; fadeEl.classList.remove('on'); setTimeout(() => { G.fading = false; }, inn); }, hold); }, out);
+  }, pre);
+}
+const clsCards = () => [...document.querySelectorAll('#classCards .card')];
+function syncHeroCards() { clsCards().forEach((c, k) => c.classList.toggle('hl', k === MENU.hlHero)); }
+function selectClass(i) {
+  selClass = CLASSES[i]; clsCards().forEach((x, k) => x.classList.toggle('sel', k === i)); $('#btnStart').disabled = false; Sfx.play('click');
+}
 function buildClassCards() {
   const box = $('#classCards'); box.innerHTML = '';
   const bar = (n, v, max) => `<div class="bar"><span>${n}</span><i><b style="width:${Math.min(100, (v / max) * 100)}%"></b></i></div>`;
-  CLASSES.forEach((c) => {
+  CLASSES.forEach((c, i) => {
     const el = document.createElement('div'); el.className = 'card';
     el.innerHTML = `<div class="ic">${c.icon}</div><h3>${c.name}</h3><div class="sub">${c.title} · ${c.style}</div><p>${c.desc}</p>` +
       bar('Здоров’я', c.hp, 150) + bar('Шкода', c.dmg / c.atkCd, 35) + bar('Швидкість', c.speed, 120) +
       `<div class="ab"><b>ПКМ · ${c.ability.name}</b><br>${c.ability.desc}</div>`;
-    el.onclick = () => { selClass = c; document.querySelectorAll('#classCards .card').forEach((x) => x.classList.remove('sel')); el.classList.add('sel'); $('#btnStart').disabled = false; Sfx.play('click'); };
+    el.onclick = () => selectClass(i);
+    el.onmouseenter = () => { MENU.hlCard = i; }; el.onmouseleave = () => { MENU.hlCard = null; };
     box.appendChild(el);
   });
 }
-$('#btnNew').onclick = () => { Sfx.init(); Sfx.play('click'); $('#menu').classList.add('hidden'); $('#classes').classList.remove('hidden'); buildClassCards(); };
+// «Нова гра»: меню відлітає, сцена наближається до вогнища, екран темніє — і з'являється вибір класу
+function goClasses(pre) {
+  if (G.fading) return; Sfx.init(); Sfx.play('click');
+  $('#menu').classList.add('leaving'); MENU.leaving = true; MENU.leaveT = clock; document.body.style.cursor = '';
+  fade(() => {
+    $('#menu').classList.add('hidden'); $('#menu').classList.remove('leaving'); MENU.leaving = false;
+    selClass = null; buildClassCards(); $('#btnStart').disabled = true; MENU.hlHero = MENU.hlCard = null;
+    $('#classes').classList.remove('hidden'); if (pre !== undefined) selectClass(pre);
+  }, { pre: 650, out: 550, hold: 200, inn: 900 });
+}
+function backToMenu() {
+  if (G.fading) return; Sfx.play('click');
+  fade(() => { $('#classes').classList.add('hidden'); $('#menu').classList.remove('hidden'); selClass = null; MENU.hlHero = MENU.hlCard = null; }, { out: 380, hold: 100, inn: 500 });
+}
+$('#btnNew').onclick = () => goClasses();
+$('#btnBackCls').onclick = backToMenu;
 // --- головне меню: керування, звук, клавіатура ---
 const menuBtns = () => [...document.querySelectorAll('#menu .mbtn')];
 let menuSel = 0;
@@ -643,19 +674,27 @@ const firstGesture = () => { Sfx.init(); $('#audioHint').classList.add('hidden')
 addEventListener('pointerdown', firstGesture, { once: true }); addEventListener('keydown', firstGesture, { once: true });
 addEventListener('keydown', (e) => {
   if (!$('#howto').classList.contains('hidden')) { if (e.code === 'Escape' || e.code === 'Enter') $('#btnBack').click(); return; }
+  if (!$('#classes').classList.contains('hidden') && e.code === 'Escape') { backToMenu(); return; }
   if ($('#menu').classList.contains('hidden') || G.state !== 'menu') return;
   if (e.code === 'ArrowDown' || e.code === 'KeyS') { menuSelect(menuSel + 1); e.preventDefault(); }
   else if (e.code === 'ArrowUp' || e.code === 'KeyW') { menuSelect(menuSel - 1); e.preventDefault(); }
   else if (e.code === 'Enter' || e.code === 'Space') { menuBtns()[menuSel].click(); e.preventDefault(); }
 });
 menuSelect(0);
+addEventListener('mousemove', (e) => { MENU.overUI = !!(e.target.closest && e.target.closest('button, .card, .keys')); });
+addEventListener('click', (e) => {
+  if (G.state !== 'menu' || MENU.hlHero === null || G.fading || (e.target.closest && e.target.closest('button, .card'))) return;
+  const i = MENU.hlHero; if (!$('#classes').classList.contains('hidden')) selectClass(i); else if (!$('#menu').classList.contains('hidden')) goClasses(i);
+});
 $('#btnStart').onclick = () => {
-  if (!selClass) return; Sfx.play('click'); $('#classes').classList.add('hidden');
-  createPlayer(selClass); Object.assign(G, { time: 0, kills: 0, deaths: 0, seen: {}, pendingPerks: 0 });
-  startLevel(0); G.state = 'play';
-  showDialog([...STORY.prologue.map((l) => ({ who: l[0], text: l[1] })), { who: '', text: selClass.intro }]);
+  if (!selClass || G.fading) return; Sfx.play('click'); const cls = selClass;
+  fade(() => {
+    $('#classes').classList.add('hidden'); MENU.hlHero = MENU.hlCard = null; document.body.style.cursor = '';
+    createPlayer(cls); Object.assign(G, { time: 0, kills: 0, deaths: 0, seen: {}, pendingPerks: 0 });
+    startLevel(0); G.state = 'play';
+    showDialog([...STORY.prologue.map((l) => ({ who: l[0], text: l[1] })), { who: '', text: cls.intro }]);
+  }, { out: 750, hold: 300, inn: 1000 });
 };
-$('#btnResume').onclick = () => { $('#pause').classList.add('hidden'); G.state = 'play'; };
 $('#btnRevive').onclick = () => { $('#dead').classList.add('hidden'); P.inv = 1.5; startLevel(G.level); say('Ти воскрес біля вогнища.'); };
 $('#btnAgain').onclick = () => { Music.play('menu'); $('#ending').classList.add('hidden'); $('#menu').classList.remove('hidden'); G.state = 'menu'; };
 function endGame(k) {
@@ -1012,7 +1051,7 @@ const MENU = {
   emb: Array.from({ length: 90 }, () => ({ p: Math.random(), v: rand(0.1, 0.28), dx: rand(-1, 1), r: Math.random() < 0.3 ? 4 : 2, c: Math.random() })),
   cr: Array.from({ length: 30 }, () => ({ p: Math.random(), v: rand(0.12, 0.3), dx: rand(-1, 1) })),
   trees: [0.1, 0.27, 0.92].map((x, i) => ({ x, h: [15, 10, 13][i], s: i % 2 ? 1 : -1 })),
-  flashT: 0, nextFlash: 4, lt: 0,
+  flashT: 0, nextFlash: 4, lt: 0, hlHero: null, hlCard: null, overUI: false, leaving: false, leaveT: 0, heroes: [], active: true,
 };
 function menuRidge(base, amp, seed, col, px, step = 4) {
   ctx.fillStyle = col;
@@ -1043,8 +1082,7 @@ function menuTree(x, gy, h, s, u, col) {
     for (let k = 0; k < 2; k++) ctx.fillRect(Math.round(x + dir * (n * 2 - 2 + k * 2) * u * 0.55), Math.round(gy - h * u * f - (n * 2 - 3 - k * 2) * u * 0.4 - u), Math.max(2, Math.round(u * 0.5)), Math.max(2, Math.round(u * 0.5)));
   });
 }
-function drawMenuBg(t) {
-  ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.imageSmoothingEnabled = false;
+function drawMenuScene(t) {
   const dt = Math.min(0.05, t - MENU.lt); MENU.lt = t;
   const mx = clamp(Input.mouse.x / W - 0.5, -0.5, 0.5), unit = Math.max(4, Math.round(H / 90));
   if (t > MENU.nextFlash) { MENU.flashT = 0.45; MENU.nextFlash = t + rand(9, 16); Sfx.noise(1.4, 0.18, 140); }
@@ -1086,10 +1124,31 @@ function drawMenuBg(t) {
   // вогнище і герої
   const fx = W / 2, fy = H * 0.945, sc = Math.max(3, Math.round(H / 180)), sp = clamp(W * 0.1, 64, 190);
   ctx.save(); ctx.translate(fx, fy); ctx.scale(Math.max(2, Math.round(sc * 0.8)), Math.max(2, Math.round(sc * 0.8))); drawProp({ type: 'bonfire', x: 0, y: 0 }, t); ctx.restore();
+  // герої: позиції, наведення, підсвічування
+  const pos = CLASSES.map((c, i) => ({ x: fx + [-3, -1.5, 1.5, 3][i] * sp, y: fy }));
+  MENU.active = !$('#menu').classList.contains('hidden') || !$('#classes').classList.contains('hidden');
+  let hit = null;
+  if (MENU.active && !MENU.overUI && !MENU.leaving && !G.fading) pos.forEach((p, i) => { if (Math.abs(Input.mouse.x - p.x) < 8 * sc && Input.mouse.y < p.y + 6 && Input.mouse.y > p.y - 25 * sc) hit = i; });
+  if (hit !== MENU.hlHero) { MENU.hlHero = hit; if (hit !== null) Sfx.tone(660, 0.07, 'triangle', 0.04, 220); document.body.style.cursor = hit !== null ? 'pointer' : ''; syncHeroCards(); }
+  const hlI = MENU.hlHero !== null ? MENU.hlHero : MENU.hlCard, selI = selClass ? CLASSES.indexOf(selClass) : -1, inCls = !$('#classes').classList.contains('hidden');
   CLASSES.forEach((c, i) => {
-    const off = [-3, -1.5, 1.5, 3][i], hx = fx + off * sp, left = off < 0;
-    ctx.save(); ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(Math.round(hx - 12 * sc / 2), Math.round(fy - 2), 12 * sc, sc * 2); ctx.restore();
-    drawChar(c.id, hx, fy, { anim: 'idle', idx: Math.floor(t * 2.2 + i * 1.3) % 4, face: left ? 0.2 : Math.PI - 0.2, scale: sc });
+    const p = pos[i], left = i < 2, isHl = hlI === i, isSel = selI === i, hop = isHl ? Math.abs(Math.sin(t * 7)) * sc * 1.1 : 0;
+    ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(Math.round(p.x - 6 * sc), Math.round(fy - 2), 12 * sc, sc * 2);
+    if (isSel) { ctx.fillStyle = `rgba(201,163,90,${0.55 + Math.sin(t * 4) * 0.2})`; ctx.fillRect(Math.round(p.x - 8 * sc), Math.round(fy - 1), 16 * sc, Math.max(2, sc * 0.6)); }
+    if (isHl || isSel) {
+      const gr = ctx.createRadialGradient(p.x, fy - 12 * sc, 4, p.x, fy - 12 * sc, 22 * sc), cc = isHl ? c.accent : '#c9a35a', n = parseInt(cc.slice(1), 16);
+      gr.addColorStop(0, `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${isHl ? 0.5 : 0.28})`); gr.addColorStop(1, `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},0)`);
+      ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = gr; ctx.fillRect(p.x - 22 * sc, fy - 36 * sc, 44 * sc, 44 * sc); ctx.globalCompositeOperation = 'source-over';
+    }
+    ctx.globalAlpha = hlI !== null && !isHl && !isSel ? 0.55 : 1;
+    drawChar(c.id, p.x, fy - hop, { anim: 'idle', idx: Math.floor(t * (isHl ? 4 : 2.2) + i * 1.3) % 4, face: isHl ? Math.PI / 2 : left ? 0.2 : Math.PI - 0.2, scale: sc, outline: isHl ? c.accent : isSel ? '#c9a35a' : null, outlineA: 0.75 + Math.sin(t * 8) * 0.25 });
+    ctx.globalAlpha = 1;
+    if (isHl) {
+      ctx.textAlign = 'center'; const ty = fy - 25 * sc - 30 - hop;
+      ctx.font = `700 ${Math.max(16, Math.round(sc * 5))}px Cinzel, Georgia, serif`; ctx.fillStyle = '#000'; ctx.fillText(c.name, p.x + 2, ty + 2); ctx.fillStyle = c.accent; ctx.fillText(c.name, p.x, ty);
+      ctx.font = `italic ${Math.max(12, Math.round(sc * 3.2))}px Georgia, serif`; ctx.fillStyle = '#d9cfc0'; ctx.fillText(c.title + ' · ' + c.style, p.x, ty + Math.max(16, sc * 4.2));
+      ctx.font = `${Math.max(11, Math.round(sc * 2.8))}px Georgia, serif`; ctx.fillStyle = '#c9a35a'; ctx.fillText(inCls ? (isSel ? '✔ обрано' : 'клікни, щоб обрати') : 'клікни, щоб вибрати героя', p.x, ty + Math.max(32, sc * 8)); ctx.textAlign = 'left';
+    } else if (isSel) { ctx.fillStyle = '#ffd24a'; const dy = fy - 25 * sc - 10 + Math.sin(t * 4) * 3; ctx.fillRect(Math.round(p.x - 4), Math.round(dy), 8, 8); ctx.fillStyle = '#7a5a1a'; ctx.fillRect(Math.round(p.x - 2), Math.round(dy + 2), 4, 4); }
   });
   const oh = Math.ceil(H * 0.36), oy = H - oh;
   if (!MENU.o || MENU.o.width !== W || MENU.o.height !== oh) {
@@ -1101,6 +1160,14 @@ function drawMenuBg(t) {
   const fg2 = ctx.createRadialGradient(fx, fy - 20, 10, fx, fy - 20, W * 0.3 + Math.sin(t * 9) * 12); fg2.addColorStop(0, `rgba(255,140,50,${0.42 + Math.sin(t * 13) * 0.06})`); fg2.addColorStop(1, 'rgba(255,100,20,0)');
   ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = fg2; ctx.fillRect(0, 0, W, H); ctx.globalCompositeOperation = 'source-over';
   MENU.emb.forEach((e) => { const k = (t * e.v + e.p) % 1, x = fx + e.dx * k * W * 0.12 + Math.sin(t * 2 + e.p * 9) * 8 * k, y = fy - 30 - k * H * 0.5; ctx.fillStyle = `rgba(255,${110 + e.c * 120 | 0},40,${(1 - k) * 0.9})`; ctx.fillRect(Math.round(x), Math.round(y), e.r, e.r); });
+}
+
+function drawMenuBg(t) {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.imageSmoothingEnabled = false;
+  ctx.save();
+  if (MENU.leaving) { const k = ease((t - MENU.leaveT) / 1.15), s0 = 1 + 0.5 * k; ctx.translate(W / 2, H * 0.88); ctx.scale(s0, s0); ctx.translate(-W / 2, -H * 0.88); }
+  drawMenuScene(t);
+  ctx.restore();
 }
 
 let last = performance.now(), clock = 0;

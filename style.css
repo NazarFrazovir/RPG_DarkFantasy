@@ -127,3 +127,16 @@ kbd {
 }
 #classes { background: radial-gradient(ellipse at center, rgba(8,4,10,.72), rgba(2,1,3,.92)); }
 @media (max-height: 560px) { .pre, .foot { display: none; } .menuList { margin-top: 10px; } }
+
+/* ===== ПЕРЕХОДИ І ВИБІР ГЕРОЯ ===== */
+#fade { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; z-index: 60; transition: opacity .6s ease; }
+#fade.on { opacity: 1; pointer-events: all; }
+@keyframes leaveUp { to { opacity: 0; transform: translateY(-34px) scale(1.05); filter: blur(4px); } }
+@keyframes leaveDown { to { opacity: 0; transform: translateY(22px); } }
+#menu.leaving .menuTitle { animation: leaveUp .55s ease forwards; }
+#menu.leaving .mbtn { animation: leaveDown .4s ease forwards; animation-delay: 0s; }
+#menu.leaving .audioHint, #menu.leaving .foot { opacity: 0; transition: opacity .3s; }
+.row { display: flex; gap: 14px; align-items: center; }
+.card.hl { border-color: var(--gold); transform: translateY(-6px); box-shadow: 0 0 22px rgba(201,163,90,.35); }
+#classes { background: linear-gradient(180deg, rgba(3,1,5,.94) 0%, rgba(3,1,5,.88) 62%, rgba(3,1,5,.2) 82%, rgba(3,1,5,0) 100%); }
+#classes { padding-bottom: 21vh; }
