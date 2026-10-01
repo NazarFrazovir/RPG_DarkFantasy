@@ -25,29 +25,45 @@
     <p class="tagline">Корона голодна. Жар у тобі — ще ні.</p>
   </header>
   <nav class="menuList">
-    <button id="btnNew" class="mbtn" style="--i:0">Нова гра</button>
-    <button id="btnHow" class="mbtn" style="--i:1">Керування</button>
-    <button class="mbtn fsBtn" style="--i:2">Повний екран</button>
-    <button id="btnSound" class="mbtn" style="--i:3">Звук: увімк.</button>
+    <button id="btnContinue" class="mbtn hidden" style="--i:0">Продовжити<small id="contInfo"></small></button>
+    <button id="btnNew" class="mbtn" style="--i:1">Нова гра</button>
+    <button id="btnSettings" class="mbtn" style="--i:2">Налаштування</button>
+    <button class="mbtn fsBtn" style="--i:3">Повний екран</button>
+    <button id="btnSound" class="mbtn" style="--i:4">Звук: увімк.</button>
   </nav>
   <div id="audioHint" class="audioHint">♪ Клікни будь-де — щоб увімкнути музику</div>
-  <footer class="foot">v0.9 · WASD · ЛКМ · ПКМ · Пробіл</footer>
+  <footer class="foot">v1.0 · автозбереження</footer>
 </div>
 
-<!-- Керування -->
-<div id="howto" class="screen hidden">
-  <h2>Керування</h2>
-  <div class="keys">
-    <div><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><em>Рух</em></div>
-    <div><span><kbd>ЛКМ</kbd></span><em>Атака (утримуй)</em></div>
-    <div><span><kbd>ПКМ</kbd> <u>або</u> <kbd>Q</kbd></span><em>Здібність класу</em></div>
-    <div><span><kbd>Пробіл</kbd></span><em>Ухилення-кувирок</em></div>
-    <div><span><kbd>F</kbd></span><em>Випити зілля</em></div>
-    <div><span><kbd>E</kbd></span><em>Взаємодія</em></div>
-    <div><span><kbd>Esc</kbd></span><em>Пауза</em></div>
-    <div><span><kbd>M</kbd> <kbd>G</kbd></span><em>Звук · Повний екран</em></div>
+<!-- Налаштування -->
+<div id="settings" class="screen hidden">
+  <h2>Налаштування</h2>
+  <div class="setPanel">
+    <section>
+      <h3>Звук</h3>
+      <label class="row2"><span>Загальна гучність</span><input type="range" id="setMaster" min="0" max="100"><output></output></label>
+      <label class="row2"><span>Музика</span><input type="range" id="setMusic" min="0" max="100"><output></output></label>
+      <label class="row2"><span>Ефекти</span><input type="range" id="setSfx" min="0" max="100"><output></output></label>
+      <label class="row2"><span>Вимкнути звук</span><input type="checkbox" id="setMute"></label>
+    </section>
+    <section>
+      <h3>Геймплей</h3>
+      <label class="row2"><span>Тряска екрана</span><input type="range" id="setShake" min="0" max="100"><output></output></label>
+      <label class="row2"><span>Цифри шкоди</span><input type="checkbox" id="setDmg"></label>
+    </section>
+    <section>
+      <h3>Керування <small>клік по клавіші — змінити · Backspace — очистити · Esc — скасувати</small></h3>
+      <div id="bindList"></div>
+      <button id="btnResetBinds" class="btn ghost">Скинути керування</button>
+    </section>
   </div>
-  <button id="btnBack" class="btn">Назад</button>
+  <button id="btnSetBack" class="btn">Назад</button>
+</div>
+
+<!-- Підтвердження -->
+<div id="confirm" class="screen hidden">
+  <p id="confirmText" class="tagline"></p>
+  <div class="row"><button id="btnNo" class="btn ghost">Скасувати</button><button id="btnYes" class="btn">Так</button></div>
 </div>
 
 <!-- Вибір класу -->
@@ -76,12 +92,15 @@
 <div id="pause" class="screen hidden">
   <h2>Пауза</h2>
   <button id="btnResume" class="btn">Продовжити</button>
+  <button id="btnPauseSet" class="btn ghost">Налаштування</button>
   <button class="btn fsBtn ghost">⛶ Повний екран</button>
+  <button id="btnQuit" class="btn ghost">Зберегти й вийти в меню</button>
 </div>
 <div id="dead" class="screen hidden">
   <h1 class="red">ТИ ПОМЕР</h1>
   <p class="tagline">Жар згасає… але не остаточно.</p>
-  <button id="btnRevive" class="btn">Воскреснути</button>
+  <button id="btnRevive" class="btn">Воскреснути біля вогнища</button>
+  <button id="btnDeadQuit" class="btn ghost">Вийти в меню</button>
 </div>
 <div id="ending" class="screen hidden">
   <h1 id="endTitle"></h1>

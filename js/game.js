@@ -102,7 +102,7 @@ function makeEnemy(type, x, y, elite, cfg) {
   return e;
 }
 
-function startLevel(i) {
+function startLevel(i, cp) {
   G.level = i; const cfg = LEVELS[i], rng = mulberry32(cfg.seed);
   map = genMap(cfg, rng); TILES = buildTiles(cfg.theme, cfg.seed);
   Music.play(['lvl1', 'lvl2', 'boss'][i]); Music.target = 0; Music.phase2 = false;
@@ -130,10 +130,10 @@ function startLevel(i) {
 
   // вогнище й NPC
   const bx = (first.cx + 0.5) * TS + (cfg.boss ? 0 : 0), by = (first.cy + 0.5) * TS + (cfg.boss ? 6 * TS : 0) - 44;
-  const bonfire = { type: 'bonfire', x: bx, y: by, ph: 0 }; props.push(bonfire);
-  inter.push({ x: bx, y: by, r: 44, label: 'Спочити біля вогнища', act: () => {
+  const bonfire = { type: 'bonfire', x: bx, y: by, ph: 0 }; props.push(bonfire); G.bonfire = { x: bx, y: by };
+  inter.push({ x: bx, y: by, r: 44, label: 'Спочити біля вогнища (зберегти)', act: () => {
     P.hp = P.maxHp; P.potions = P.maxPotions; float(P.x, P.y - 24, 'Жар відновлює сили', '#ffb347'); Sfx.play('potion');
-    burst(bx, by, '#ffb347', 20, 90, 3);
+    burst(bx, by, '#ffb347', 20, 90, 3); checkpoint();
   } });
   if (cfg.npc) {
     const p = { x: (first.cx + 3.2) * TS, y: (first.cy + 0.5) * TS };
@@ -167,10 +167,19 @@ function startLevel(i) {
     // сувої лору
     cfg.lore.forEach((text, k) => {
       const r = rooms[1 + Math.floor(rng() * (rooms.length - 2))], p = roomPos(r, rng);
-      const it = { x: p.x, y: p.y, r: 30, label: 'Прочитати сувій', act: () => { showDialog([{ who: 'Сувій', text }]); it.gone = true; props.splice(props.findIndex((q) => q.ref === it), 1); Sfx.play('pickup'); }, lore: true };
-      inter.push(it); props.push({ type: 'scroll', x: p.x, y: p.y, ref: it, ph: k });
+      const it = { x: p.x, y: p.y, r: 30, label: 'Прочитати сувій', act: () => { showDialog([{ who: 'Сувій', text }]); it.gone = true; G.loreTaken.push(k); props.splice(props.findIndex((q) => q.ref === it), 1); Sfx.play('pickup'); }, lore: true };
+      inter.push(it); props.push({ type: 'scroll', x: p.x, y: p.y, ref: it, ph: k }); it.k = k;
     });
   }
+  enemies.forEach((e, k) => { e.id = k; });
+  G.dead = new Set(); G.loreTaken = [];
+  if (cp) {
+    cp.dead.forEach((id) => G.dead.add(id)); enemies = enemies.filter((e) => !G.dead.has(e.id));
+    G.loreTaken = cp.lore.slice();
+    inter.forEach((it) => { if (it.lore && G.loreTaken.includes(it.k)) { it.gone = true; const pi = props.findIndex((q) => q.ref === it); if (pi >= 0) props.splice(pi, 1); } });
+    G.portalOpen = !!cp.portal; unpackExplored(cp.explored);
+    P.x = cp.x; P.y = cp.y; cam.x = P.x; cam.y = P.y; G.cp = cp;
+  } else { G.cp = makeCp(); saveGame(); }
   G.titleT = 3.5; G.state = 'play';
 }
 
@@ -187,7 +196,48 @@ function burst(x, y, color, n, sp, size, life = 0.6) {
     parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life, max: life, size: rand(size * 0.5, size), color });
   }
 }
+function dmgFloat(x, y, text, color, big) { if (Settings.v.dmgNums) float(x, y, text, color, big); }
 function float(x, y, text, color = '#fff', big = false) { texts.push({ x, y, text, color, t: 0, big }); }
+// ---------- Збереження й чекпоінти ----------
+const SAVE_KEY = 'ashtorn.save.v1';
+const SAVE_FIELDS = ['level', 'xp', 'xpNext', 'maxHp', 'potions', 'maxPotions', 'potionHeal', 'crit', 'lifesteal', 'dmgMul', 'spdMul', 'asMul', 'cdr', 'dodgeMul', 'xpMul', 'magnet', 'perks'];
+function packExplored() {
+  if (!explored || !explored.length) return [];
+  const out = [explored[0]]; let run = 1;
+  for (let i = 1; i < explored.length; i++) { if (explored[i] === explored[i - 1]) run++; else { out.push(run); run = 1; } }
+  out.push(run); return out;
+}
+function unpackExplored(a) {
+  if (!Array.isArray(a) || !a.length) return; let v = a[0] ? 1 : 0, idx = 0;
+  for (let k = 1; k < a.length; k++) { for (let j = 0; j < a[k] && idx < explored.length; j++) explored[idx++] = v; v ^= 1; }
+}
+function makeCp() { return { level: G.level, dead: [], lore: [], portal: false, x: P.x, y: P.y, explored: [] }; }
+function toast(t) { G.toast = t; G.toastT = 2.6; }
+function saveGame(show) {
+  if (!P || G.level === undefined) return;
+  const player = {}; SAVE_FIELDS.forEach((k) => { player[k] = P[k]; });
+  const data = { v: 1, t: Date.now(), cls: P.cls.id, level: G.level, cp: G.cp, seen: G.seen, stats: { time: G.time, kills: G.kills, deaths: G.deaths }, player };
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); if (show) toast('Прогрес збережено'); }
+  catch (e) { if (show) toast('Не вдалося зберегти (сховище недоступне)'); }
+}
+function readSave() {
+  try {
+    const d = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
+    if (!d || d.v !== 1 || !CLASSES.some((c) => c.id === d.cls) || !LEVELS[d.level] || !d.cp || !Array.isArray(d.cp.dead) || !Array.isArray(d.cp.lore) || !d.player) return null;
+    return d;
+  } catch (e) { return null; }
+}
+function deleteSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignore */ } }
+function checkpoint() {
+  G.cp = { level: G.level, dead: [...G.dead], lore: [...G.loreTaken], portal: G.portalOpen, x: G.bonfire.x, y: G.bonfire.y + 38, explored: packExplored() };
+  saveGame(true);
+}
+function loadGame(d) {
+  const cls = CLASSES.find((c) => c.id === d.cls); createPlayer(cls);
+  SAVE_FIELDS.forEach((k) => { if (d.player[k] !== undefined) P[k] = d.player[k]; }); P.hp = P.maxHp;
+  Object.assign(G, { time: d.stats.time || 0, kills: d.stats.kills || 0, deaths: d.stats.deaths || 0, seen: d.seen || {}, pendingPerks: 0 });
+  startLevel(d.level, d.cp); G.state = 'play'; say('Прогрес завантажено');
+}
 function later(sec, fn) { G.timers.push({ t: sec, fn }); }
 function say(m) { G.msg = m; G.msgT = 3.5; }
 
@@ -195,27 +245,27 @@ function say(m) { G.msg = m; G.msgT = 3.5; }
 function hurtPlayer(dmg, from) {
   if (P.inv > 0 || G.state !== 'play') return;
   P.hp -= dmg; P.inv = 0.45; P.flash = 0.15; G.shake = Math.max(G.shake, 7); G.stop = 0.07; P.hitDir = from ? Math.cos(angTo(from, P)) : 1;
-  float(P.x, P.y - 16, Math.round(dmg), '#ff5050', true); Sfx.play('hurt'); burst(P.x, P.y, '#a02020', 8, 120, 3);
+  dmgFloat(P.x, P.y - 16, Math.round(dmg), '#ff5050', true); Sfx.play('hurt'); burst(P.x, P.y, '#a02020', 8, 120, 3);
   if (from) { const a = angTo(from, P); moveEntity(P, Math.cos(a) * 10, Math.sin(a) * 10); }
   if (P.hp <= 0) playerDie();
 }
 function damageTarget(t, dmg, src) {
   if (t === P) hurtPlayer(dmg, src);
-  else { t.hp -= dmg; t.flash = 0.1; float(t.x, t.y - 12, Math.round(dmg), '#ff9090'); }
+  else { t.hp -= dmg; t.flash = 0.1; dmgFloat(t.x, t.y - 12, Math.round(dmg), '#ff9090'); }
 }
 function hitEnemy(e, base, ang, knock = 60, opt = {}) {
   if (e.dead) return;
   const crit = Math.random() < P.crit, dmg = Math.round(base * P.dmgMul * (crit ? 2 : 1) * (opt.mul || 1));
   e.hp -= dmg; e.flash = 0.12; e.aggro = true; e.hitAng = ang; if (crit) G.stop = Math.max(G.stop, 0.05);
   const kb = knock * (1 - e.kbRes); e.kx += Math.cos(ang) * kb * 5; e.ky += Math.sin(ang) * kb * 5;
-  float(e.x + rand(-6, 6), e.y - e.r - 6, dmg + (crit ? '!' : ''), crit ? '#ffd24a' : '#fff', crit);
+  dmgFloat(e.x + rand(-6, 6), e.y - e.r - 6, dmg + (crit ? '!' : ''), crit ? '#ffd24a' : '#fff', crit);
   burst(e.x, e.y, e.ai === 'boss' ? '#a02020' : '#8a1a1a', 4, 100, 2.5, 0.4);
   if (P.lifesteal) P.hp = Math.min(P.maxHp, P.hp + dmg * P.lifesteal);
   Sfx.play('hit');
   if (e.hp <= 0) killEnemy(e);
 }
 function killEnemy(e) {
-  if (e.dead) return; e.dead = true; G.kills++; G.stop = Math.max(G.stop, e.elite || e.ai === 'boss' ? 0.14 : 0.05);
+  if (e.dead) return; e.dead = true; G.kills++; if (!e.minion && e.id !== undefined) G.dead.add(e.id); G.stop = Math.max(G.stop, e.elite || e.ai === 'boss' ? 0.14 : 0.05);
   corpses.push(makeCorpse(e, e.hitAng)); if (corpses.length > 45) corpses.shift();
   if (e.ai !== 'boss' && e.type !== 'skeleton') burst(e.x, e.y, e.type === 'ghoul' ? '#4a6a2a' : '#7a1010', 12, 140, 3.5, 0.8);
   const orbs = Math.min(6, Math.ceil(e.xp / 8));
@@ -299,7 +349,7 @@ function playerAbility(ang) {
 function updatePlayer(dt) {
   P.atkT -= dt; P.dodgeCdT -= dt; P.abT -= dt; P.inv -= dt; P.flash -= dt; P.animT += dt; P.castT -= dt;
   const mwx = Input.mouse.x - W / 2 + cam.x, mwy = Input.mouse.y - H / 2 + cam.y, aim = Math.atan2(mwy - P.y, mwx - P.x);
-  let dx = (Input.down('KeyD') ? 1 : 0) - (Input.down('KeyA') ? 1 : 0), dy = (Input.down('KeyS') ? 1 : 0) - (Input.down('KeyW') ? 1 : 0);
+  let dx = (Binds.down('right') ? 1 : 0) - (Binds.down('left') ? 1 : 0), dy = (Binds.down('down') ? 1 : 0) - (Binds.down('up') ? 1 : 0);
   const m = Math.hypot(dx, dy); if (m) { dx /= m; dy /= m; }
   if (P.dodgeT > 0) {
     P.dodgeT -= dt; moveEntity(P, P.dodgeDir.x * 400 * dt, P.dodgeDir.y * 400 * dt);
@@ -307,15 +357,15 @@ function updatePlayer(dt) {
   } else {
     const sp = P.speed * P.spdMul; moveEntity(P, dx * sp * dt, dy * sp * dt);
     P.moving = !!m;
-    if (Input.pressed('Space') && P.dodgeCdT <= 0) {
+    if (Binds.pressed('dodge') && P.dodgeCdT <= 0) {
       P.dodgeT = 0.2; P.inv = Math.max(P.inv, 0.32); P.dodgeCdT = P.cls.dodgeCd * P.dodgeMul;
       P.dodgeDir = m ? { x: dx, y: dy } : { x: Math.cos(aim), y: Math.sin(aim) }; Sfx.play('dodge');
     }
     if (Input.mouse.down && P.atkT <= 0) playerAttack(aim);
-    if ((Input.pressed('KeyQ') || Input.mouse.rEdge) && P.abT <= 0) playerAbility(aim);
+    if ((Binds.pressed('ability') || Input.mouse.rEdge) && P.abT <= 0) playerAbility(aim);
   }
   P.face = aim;
-  if (Input.pressed('KeyF') && P.potions > 0 && P.hp < P.maxHp) {
+  if (Binds.pressed('potion') && P.potions > 0 && P.hp < P.maxHp) {
     P.potions--; P.hp = Math.min(P.maxHp, P.hp + P.maxHp * P.potionHeal); Sfx.play('potion'); burst(P.x, P.y, '#55ff88', 12, 70, 3); float(P.x, P.y - 20, '+', '#55ff88', true);
   }
   // мапа: розвідка
@@ -523,7 +573,7 @@ function dust(x, y, big) {
 }
 function update(dt) {
   if (G.stop > 0) { G.stop -= dt; return; }
-  G.time += dt; G.titleT -= dt; G.msgT -= dt;
+  G.time += dt; G.titleT -= dt; G.msgT -= dt; G.toastT -= dt;
   updatePlayer(dt);
   flowT -= dt; if (flowT <= 0) { computeFlow(); flowT = 0.3; }
   enemies.forEach((e) => { if (!e.dead) updateEnemy(e, dt); });
@@ -544,7 +594,7 @@ function update(dt) {
   let near = null, nd = 1e9;
   inter.forEach((it) => { if (it.gone) return; const d = Math.hypot(it.x - P.x, it.y - P.y); if (d < it.r && d < nd) { nd = d; near = it; } });
   G.near = near;
-  if (near && Input.pressed('KeyE')) near.act();
+  if (near && Binds.pressed('interact')) near.act();
   if (G.pendingPerks > 0 && G.state === 'play' && !G.noPerk) openPerks();
 }
 
@@ -612,7 +662,7 @@ function choosePerk(pk) {
     case 'roll': P.dodgeMul *= 0.75; break;
     case 'soul': P.xpMul += 0.2; P.magnet += 50; break;
   }
-  Sfx.play('level'); $('#perks').classList.add('hidden'); G.state = 'play';
+  Sfx.play('level'); $('#perks').classList.add('hidden'); G.state = 'play'; saveGame();
 }
 
 // ---------- Меню / потік гри ----------
@@ -659,29 +709,105 @@ function backToMenu() {
   if (G.fading) return; Sfx.play('click');
   fade(() => { $('#classes').classList.add('hidden'); $('#menu').classList.remove('hidden'); selClass = null; MENU.hlHero = MENU.hlCard = null; }, { out: 380, hold: 100, inn: 500 });
 }
-$('#btnNew').onclick = () => goClasses();
+$('#btnNew').onclick = () => { if (readSave()) { Sfx.init(); Sfx.play('click'); askConfirm('Почати нову гру? Поточне збереження буде замінено, щойно ти вирушиш у пригоду.', () => goClasses()); } else goClasses(); };
 $('#btnBackCls').onclick = backToMenu;
-// --- головне меню: керування, звук, клавіатура ---
-const menuBtns = () => [...document.querySelectorAll('#menu .mbtn')];
+// --- головне меню: продовжити, налаштування, підтвердження, вихід ---
+const menuBtns = () => [...document.querySelectorAll('#menu .mbtn')].filter((b) => !b.classList.contains('hidden'));
 let menuSel = 0;
-function menuSelect(i) { const b = menuBtns(); menuSel = (i + b.length) % b.length; b.forEach((x, k) => x.classList.toggle('sel', k === menuSel)); }
-function syncSound() { $('#btnSound').textContent = 'Звук: ' + (Sfx.muted ? 'вимк.' : 'увімк.'); }
-menuBtns().forEach((b, i) => b.addEventListener('mouseenter', () => { menuSelect(i); Sfx.tone(880, 0.05, 'square', 0.025); }));
-$('#btnHow').onclick = () => { Sfx.play('click'); $('#menu').classList.add('hidden'); $('#howto').classList.remove('hidden'); };
-$('#btnBack').onclick = () => { Sfx.play('click'); $('#howto').classList.add('hidden'); $('#menu').classList.remove('hidden'); };
+function menuSelect(i) { const b = menuBtns(); if (!b.length) return; menuSel = (i + b.length) % b.length; b.forEach((x, k) => x.classList.toggle('sel', k === menuSel)); }
+function syncSound() { $('#btnSound').textContent = 'Звук: ' + (Settings.v.muted ? 'вимк.' : 'увімк.'); const m = $('#setMute'); if (m) m.checked = Settings.v.muted; }
+function refreshContinue() {
+  const d = readSave(), b = $('#btnContinue');
+  b.classList.toggle('hidden', !d);
+  if (d) { const c = CLASSES.find((x) => x.id === d.cls), t = Math.floor((d.stats.time || 0) / 60); $('#contInfo').textContent = `${c.name} · рівень ${d.player.level} · ${LEVELS[d.level].name} · ${t} хв`; }
+  menuSelect(0);
+}
+menuBtns().forEach((b, i) => b.addEventListener('mouseenter', () => { menuSelect(menuBtns().indexOf(b)); Sfx.tone(880, 0.05, 'square', 0.025); }));
+
+// підтвердження
+let confirmYes = null;
+function askConfirm(text, yes) { confirmYes = yes; $('#confirmText').textContent = text; $('#confirm').classList.remove('hidden'); }
+$('#btnYes').onclick = () => { $('#confirm').classList.add('hidden'); const f = confirmYes; confirmYes = null; if (f) f(); };
+$('#btnNo').onclick = () => { $('#confirm').classList.add('hidden'); confirmYes = null; };
+
+$('#btnContinue').onclick = () => {
+  const d = readSave(); if (!d || G.fading) return; Sfx.init(); Sfx.play('click'); $('#menu').classList.add('leaving'); MENU.leaving = true; MENU.leaveT = clock;
+  fade(() => { $('#menu').classList.add('hidden'); $('#menu').classList.remove('leaving'); MENU.leaving = false; document.body.style.cursor = ''; loadGame(d); }, { pre: 550, out: 500, hold: 200, inn: 900 });
+};
+function toMenu() {
+  if (G.fading) return;
+  fade(() => {
+    ['pause', 'dead', 'settings'].forEach((id) => $('#' + id).classList.add('hidden'));
+    G.state = 'menu'; Music.play('menu'); Music.target = 0; MENU.hlHero = MENU.hlCard = null; document.body.style.cursor = '';
+    $('#menu').classList.remove('hidden'); refreshContinue();
+  }, { out: 500, hold: 150, inn: 700 });
+}
+$('#btnQuit').onclick = () => { Sfx.play('click'); saveGame(); toMenu(); };
+$('#btnDeadQuit').onclick = () => { Sfx.play('click'); saveGame(); toMenu(); };
+
+// --- налаштування ---
+let settingsFrom = 'menu', listen = null;
+const RESERVED = ['Escape', 'KeyP', 'Enter', 'Digit1', 'Digit2', 'Digit3', 'Tab', 'F5', 'F11', 'F12'];
+function cancelListen() { listen = null; buildBinds(); }
+function buildBinds() {
+  const box = $('#bindList'); box.innerHTML = '';
+  Object.keys(DEFAULT_BINDS).forEach((a) => {
+    const row = document.createElement('div'); row.className = 'bindRow'; row.innerHTML = `<span>${BIND_NAMES[a]}</span>`;
+    [0, 1].forEach((slot) => {
+      const b = document.createElement('button'); b.className = 'bindBtn'; b.textContent = keyLabel(Settings.binds[a][slot]);
+      if (listen && listen.a === a && listen.slot === slot) { b.classList.add('listen'); b.textContent = 'натисни…'; }
+      b.onclick = () => { Sfx.play('click'); listen = { a, slot }; buildBinds(); };
+      row.appendChild(b);
+    });
+    box.appendChild(row);
+  });
+  [['Атака', 'ЛКМ'], ['Здібність (мишею)', 'ПКМ'], ['Пауза', 'Esc / P'], ['Вибір дару', '1 / 2 / 3']].forEach(([n, k]) => {
+    const row = document.createElement('div'); row.className = 'bindRow'; row.innerHTML = `<span>${n}</span><button class="bindBtn fixed" tabindex="-1">${k}</button>`; box.appendChild(row);
+  });
+}
+function syncSettingsUI() {
+  const set = (id, v) => { const el = $('#' + id); el.value = Math.round(v * 100); el.nextElementSibling.textContent = Math.round(v * 100) + '%'; };
+  set('setMaster', Settings.v.master); set('setMusic', Settings.v.music); set('setSfx', Settings.v.sfx); set('setShake', Settings.v.shake);
+  $('#setMute').checked = Settings.v.muted; $('#setDmg').checked = Settings.v.dmgNums;
+}
+function updateKeyHints() { $('#dialog .hint').textContent = `[${keyLabel(Settings.binds.interact[0])}] / клік — далі`; }
+function openSettings(from) { settingsFrom = from; listen = null; $('#' + from).classList.add('hidden'); buildBinds(); syncSettingsUI(); $('#settings').classList.remove('hidden'); $('#settings').scrollTop = 0; }
+function closeSettings() { listen = null; Settings.save(); $('#settings').classList.add('hidden'); $('#' + settingsFrom).classList.remove('hidden'); updateKeyHints(); syncSound(); }
+[['setMaster', 'master'], ['setMusic', 'music'], ['setSfx', 'sfx'], ['setShake', 'shake']].forEach(([id, key]) => {
+  const el = $('#' + id);
+  el.oninput = () => { Settings.v[key] = el.value / 100; el.nextElementSibling.textContent = el.value + '%'; Sfx.applyVol(); Settings.save(); };
+  el.onchange = () => { Sfx.init(); if (key === 'sfx' || key === 'master') Sfx.play('hit'); if (key === 'shake') G.shake = 8; };
+});
+$('#setMute').onchange = () => { Settings.v.muted = $('#setMute').checked; Sfx.applyVol(); Settings.save(); syncSound(); };
+$('#setDmg').onchange = () => { Settings.v.dmgNums = $('#setDmg').checked; Settings.save(); };
+$('#btnSettings').onclick = () => { Sfx.init(); Sfx.play('click'); openSettings('menu'); };
+$('#btnPauseSet').onclick = () => { Sfx.play('click'); openSettings('pause'); };
+$('#btnSetBack').onclick = () => { Sfx.play('click'); closeSettings(); };
+$('#btnResetBinds').onclick = () => { Sfx.play('click'); Binds.reset(); listen = null; buildBinds(); };
 $('#btnSound').onclick = () => { Sfx.init(); Sfx.toggle(); syncSound(); Sfx.play('click'); };
+// перехоплення клавіші для прив'язки (фаза capture — до решти обробників)
+addEventListener('keydown', (e) => {
+  if (!listen) return;
+  e.preventDefault(); e.stopImmediatePropagation(); if (e.repeat) return;
+  if (e.code === 'Escape') { cancelListen(); return; }
+  if (e.code === 'Backspace' || e.code === 'Delete') { Binds.clear(listen.a, listen.slot); cancelListen(); return; }
+  if (RESERVED.includes(e.code)) return;
+  Binds.set(listen.a, listen.slot, e.code); Sfx.play('pickup'); cancelListen();
+}, true);
+
 const firstGesture = () => { Sfx.init(); $('#audioHint').classList.add('hidden'); };
 addEventListener('pointerdown', firstGesture, { once: true }); addEventListener('keydown', firstGesture, { once: true });
 addEventListener('keydown', (e) => {
-  if (!$('#howto').classList.contains('hidden')) { if (e.code === 'Escape' || e.code === 'Enter') $('#btnBack').click(); return; }
-  if (!$('#classes').classList.contains('hidden') && e.code === 'Escape') { backToMenu(); return; }
+  if (!$('#confirm').classList.contains('hidden')) { if (e.code === 'Escape') { e.escUsed = true; $('#btnNo').click(); } else if (e.code === 'Enter') $('#btnYes').click(); return; }
+  if (!$('#settings').classList.contains('hidden')) { if (e.code === 'Escape') { e.escUsed = true; closeSettings(); } return; }
+  if (!$('#classes').classList.contains('hidden') && e.code === 'Escape') { e.escUsed = true; backToMenu(); return; }
   if ($('#menu').classList.contains('hidden') || G.state !== 'menu') return;
-  if (e.code === 'ArrowDown' || e.code === 'KeyS') { menuSelect(menuSel + 1); e.preventDefault(); }
-  else if (e.code === 'ArrowUp' || e.code === 'KeyW') { menuSelect(menuSel - 1); e.preventDefault(); }
-  else if (e.code === 'Enter' || e.code === 'Space') { menuBtns()[menuSel].click(); e.preventDefault(); }
+  if (e.code === 'ArrowDown' || Binds.matches('down', e.code)) { menuSelect(menuSel + 1); e.preventDefault(); }
+  else if (e.code === 'ArrowUp' || Binds.matches('up', e.code)) { menuSelect(menuSel - 1); e.preventDefault(); }
+  else if (e.code === 'Enter' || e.code === 'Space') { const b = menuBtns()[menuSel]; if (b) b.click(); e.preventDefault(); }
 });
-menuSelect(0);
-addEventListener('mousemove', (e) => { MENU.overUI = !!(e.target.closest && e.target.closest('button, .card, .keys')); });
+syncSound(); refreshContinue(); updateKeyHints();
+addEventListener('mousemove', (e) => { MENU.overUI = !!(e.target.closest && e.target.closest('button, .card, .keys, .setPanel')); });
 addEventListener('click', () => { if (G.state === 'cine' && Cine.t > 1.5) Cine.skipping = true; });
 addEventListener('click', (e) => {
   if (G.state !== 'menu' || MENU.hlHero === null || G.fading || (e.target.closest && e.target.closest('button, .card'))) return;
@@ -696,14 +822,14 @@ $('#btnStart').onclick = () => {
     Cine.start(cls, () => { G.state = 'play'; Music.play('lvl1'); });
   }, { out: 750, hold: 300, inn: 1000 });
 };
-$('#btnRevive').onclick = () => { $('#dead').classList.add('hidden'); P.inv = 1.5; startLevel(G.level); say('Ти воскрес біля вогнища.'); };
-$('#btnAgain').onclick = () => { Music.play('menu'); $('#ending').classList.add('hidden'); $('#menu').classList.remove('hidden'); G.state = 'menu'; };
+$('#btnRevive').onclick = () => { $('#dead').classList.add('hidden'); startLevel(G.level, G.cp); P.inv = 1.5; say('Ти воскрес біля вогнища.'); };
+$('#btnAgain').onclick = () => { Music.play('menu'); $('#ending').classList.add('hidden'); $('#menu').classList.remove('hidden'); G.state = 'menu'; refreshContinue(); };
 function endGame(k) {
   const e = STORY.endings[k];
   fade(() => {
     $('#dialog').classList.add('hidden'); G.state = 'cine'; Music.target = 0;
     Cine.start(P.cls, () => {
-      G.state = 'end'; Music.play(k === 'destroy' ? 'end_good' : 'end_dark');
+      G.state = 'end'; deleteSave(); refreshContinue(); Music.play(k === 'destroy' ? 'end_good' : 'end_dark');
       $('#endTitle').textContent = e.title; $('#endText').textContent = e.text;
       const m = Math.floor(G.time / 60), s = Math.floor(G.time % 60);
       $('#endStats').textContent = `${P.cls.name} · рівень ${P.level} · вбито ворогів: ${G.kills} · смертей: ${G.deaths} · час: ${m}:${String(s).padStart(2, '0')}`;
@@ -718,9 +844,9 @@ function toggleFs() {
 }
 document.querySelectorAll('.fsBtn').forEach((b) => (b.onclick = () => { toggleFs(); b.blur(); }));
 addEventListener('keydown', (e) => {
-  if (e.code === 'KeyG') toggleFs();
-  if (e.code === 'KeyM') { Sfx.toggle(); syncSound(); }
-  if (e.code === 'Escape' && !e.repeat) {
+  if (Binds.matches('fullscreen', e.code)) toggleFs();
+  if (Binds.matches('mute', e.code)) { Sfx.toggle(); syncSound(); }
+  if ((e.code === 'Escape' || e.code === 'KeyP') && !e.repeat && !e.escUsed) {
     if (G.state === 'pause') $('#btnResume').click();
     else if (G.state === 'play') { G.state = 'pause'; $('#pause').classList.remove('hidden'); }
   }
@@ -934,7 +1060,7 @@ function drawCorpse(c) {
 }
 
 function drawWorld(t) {
-  const sh = G.shake, sx = Math.round(W / 2 - cam.x + rand(-sh, sh)), sy = Math.round(H / 2 - cam.y + rand(-sh, sh));
+  const sh = G.shake * Settings.v.shake, sx = Math.round(W / 2 - cam.x + rand(-sh, sh)), sy = Math.round(H / 2 - cam.y + rand(-sh, sh));
   ctx.save(); ctx.translate(sx, sy);
   drawTiles();
   props.filter((p) => p.type !== 'npc' && p.type !== 'portal' && p.type !== 'bonfire' && p.type !== 'scroll').forEach((p) => drawProp(p, t));
@@ -1004,9 +1130,9 @@ function drawHUD(t, sx, sy) {
   // Кулдауни
   const slots = [
     { k: 'ЛКМ', n: 'Атака', v: 1 - Math.max(0, P.atkT) / (P.cls.atkCd / P.asMul), ic: P.cls.icon },
-    { k: 'ПКМ', n: 'Здібність', v: 1 - Math.max(0, P.abT) / (P.cls.ability.cd * (1 - P.cdr)), ic: '✨' },
-    { k: '␣', n: 'Ухил.', v: 1 - Math.max(0, P.dodgeCdT) / (P.cls.dodgeCd * P.dodgeMul), ic: '💨' },
-    { k: 'F', n: 'Зілля ×' + P.potions, v: P.potions > 0 ? 1 : 0, ic: '🧪' },
+    { k: 'ПКМ·' + keyLabel(Settings.binds.ability[0]), n: 'Здібність', v: 1 - Math.max(0, P.abT) / (P.cls.ability.cd * (1 - P.cdr)), ic: '✨' },
+    { k: keyLabel(Settings.binds.dodge[0]), n: 'Ухил.', v: 1 - Math.max(0, P.dodgeCdT) / (P.cls.dodgeCd * P.dodgeMul), ic: '💨' },
+    { k: keyLabel(Settings.binds.potion[0]), n: 'Зілля ×' + P.potions, v: P.potions > 0 ? 1 : 0, ic: '🧪' },
   ];
   slots.forEach((s, i) => {
     const x = vw / 2 - 150 + i * 80, y = vh - 78;
@@ -1037,12 +1163,13 @@ function drawHUD(t, sx, sy) {
   // Елітний бар
   enemies.forEach((e) => { if (e.elite && e.aggro) { const bw2 = Math.min(400, vw - 80), bx = vw / 2 - bw2 / 2, by = 46; ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(bx - 2, by - 2, bw2 + 4, 12); ctx.fillStyle = '#e0a020'; ctx.fillRect(bx, by, bw2 * Math.max(0, e.hp / e.maxHp), 8); ctx.font = '12px Georgia'; ctx.fillStyle = '#e0c080'; ctx.fillText(e.name, vw / 2, by + 24); } });
   // Підказка взаємодії
-  if (G.near && G.state === 'play') { ctx.font = '16px Georgia'; ctx.fillStyle = '#ffe08a'; ctx.fillText('[E] ' + (G.near.dyn ? G.near.dyn() : G.near.label), vw / 2, vh / 2 + 60); }
+  if (G.near && G.state === 'play') { ctx.font = '16px Georgia'; ctx.fillStyle = '#ffe08a'; ctx.fillText('[' + keyLabel(Settings.binds.interact[0]) + '] ' + (G.near.dyn ? G.near.dyn() : G.near.label), vw / 2, vh / 2 + 60); }
   // Повідомлення
   if (G.msgT > 0) { ctx.globalAlpha = Math.min(1, G.msgT); ctx.font = 'italic 20px Georgia'; ctx.fillStyle = '#e8d8b0'; ctx.fillText(G.msg, vw / 2, 110); ctx.globalAlpha = 1; }
   // Плаваючий текст
   ctx.save(); ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.translate(sx, sy);
   texts.forEach((tx) => { ctx.globalAlpha = 1 - tx.t; ctx.font = (tx.big ? 'bold 20px' : '14px') + ' Georgia'; ctx.fillStyle = '#000'; ctx.fillText(tx.text, tx.x + 1, tx.y + 1); ctx.fillStyle = tx.color; ctx.fillText(tx.text, tx.x, tx.y); }); ctx.globalAlpha = 1; ctx.restore();
+  if (G.toastT > 0) { ctx.globalAlpha = Math.min(1, G.toastT); ctx.font = '14px Georgia'; ctx.textAlign = 'right'; ctx.fillStyle = '#000'; ctx.fillText('💾 ' + G.toast, vw - 15, vh - 13); ctx.fillStyle = '#c9a35a'; ctx.fillText('💾 ' + G.toast, vw - 16, vh - 14); ctx.textAlign = 'center'; ctx.globalAlpha = 1; }
   // Заголовок рівня
   if (G.titleT > 0) {
     const a = Math.min(1, G.titleT, (3.5 - G.titleT) * 2); ctx.globalAlpha = a; ctx.fillStyle = '#c9a35a'; ctx.font = '16px Georgia'; ctx.fillText(cfg.sub.toUpperCase(), vw / 2, vh * 0.3 - 30);
@@ -1188,7 +1315,7 @@ function frame(now) {
     else if (G.state === 'dead') tickFx(dt);
     else if (G.state === 'dialog') {
       if (D.pos < D.full.length) { D.pos = Math.min(D.full.length, D.pos + dt * 55); renderDlgText(); } else if (D.choices) renderDlgText();
-      if (Input.pressed('KeyE') || Input.pressed('Space') || Input.pressed('Enter')) dlgAdvance();
+      if (Binds.pressed('interact') || Input.pressed('Space') || Input.pressed('Enter')) dlgAdvance();
       cam.x += (P.x - cam.x) * Math.min(1, dt * 8); cam.y += (P.y - cam.y) * Math.min(1, dt * 8);
     }
     ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);

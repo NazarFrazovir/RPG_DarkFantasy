@@ -44,7 +44,7 @@ const Music = {
   init() {
     if (this.ctx || !Sfx.ctx) return;
     const c = this.ctx = Sfx.ctx;
-    this.out = c.createGain(); this.out.gain.value = this.vol; this.out.connect(Sfx.master);
+    this.out = c.createGain(); this.out.gain.value = this.vol; this.out.connect(Sfx.musBus);
     this.fade = c.createGain(); this.fade.gain.value = 0; this.fade.connect(this.out);
     this.dryIn = c.createGain(); this.dryIn.connect(this.fade);
     const len = Math.floor(c.sampleRate * 2.8), buf = c.createBuffer(2, len, c.sampleRate);
