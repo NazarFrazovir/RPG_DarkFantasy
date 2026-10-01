@@ -180,3 +180,6 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: #c9a35a; cursor:
 #tutSkip:hover { color: #ffc060; }
 #tip { position: fixed; bottom: clamp(100px, 16vh, 130px); left: 50%; transform: translateX(-50%); z-index: 8; background: rgba(60,20,16,.9); border: 1px solid #a04a30; padding: 8px 18px; font-size: 16px; animation: scrIn .3s ease both; max-width: 92vw; text-align: center; }
 #tip kbd { font-size: 12px; padding: 2px 7px; }
+
+select { font-family: var(--serif); font-size: 15px; color: #ffe8b0; background: #1a100e; border: 1px solid #8a6a3a; padding: 5px 10px; cursor: pointer; }
+select:focus { outline: 1px solid #ffc060; }

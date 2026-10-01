@@ -29,7 +29,7 @@ const DEFAULT_BINDS = {
 };
 const BIND_NAMES = { up: 'Вгору', down: 'Вниз', left: 'Ліворуч', right: 'Праворуч', dodge: 'Ухилення', ability: 'Здібність класу', potion: 'Зілля', interact: 'Взаємодія', mute: 'Вимк./увімк. звук', fullscreen: 'Повний екран' };
 const Settings = {
-  v: { master: 0.8, music: 0.8, sfx: 0.9, shake: 1, dmgNums: true, hints: true, muted: false },
+  v: { master: 0.8, music: 0.8, sfx: 0.9, shake: 1, dmgNums: true, hints: true, diff: 1, muted: false },
   binds: JSON.parse(JSON.stringify(DEFAULT_BINDS)),
   load() {
     try {

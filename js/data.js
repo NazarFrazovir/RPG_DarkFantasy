@@ -7,7 +7,7 @@ const CLASSES = [
     id: 'knight', name: 'Лицар Попелу', icon: '⚔️', color: '#9aa4b5', accent: '#d8b26a',
     title: 'Незламний Вартовий',
     desc: 'Колишній гвардієць короля. Броня іржавіє, але воля — ні. Рубає мечем по широкій дузі й розчищає натовп.',
-    hp: 150, speed: 100, dmg: 17, atkCd: 0.5, dodgeCd: 0.9,
+    hp: 210, speed: 100, dmg: 17, atkCd: 0.5, dodgeCd: 0.9, armor: 0.72,
     style: 'Ближній бій',
     ability: { name: 'Удар Щита', desc: 'Ударна хвиля: шкода, оглушення й відкидання навколо.', cd: 7 },
     intro: 'Броня іржавіє на тобі, але щит усе ще тримає герб Ашторна. Ти пам’ятаєш присягу — і того, хто її зламав.',
@@ -16,7 +16,7 @@ const CLASSES = [
     id: 'pyro', name: 'Чорнокнижник Жару', icon: '🔥', color: '#c0562e', accent: '#ffb347',
     title: 'Той, Хто Носить Вогонь',
     desc: 'Вигнаний маг, що спалив власні книги заради сили. Тендітний, але його вогонь ганяється за ворогами й палить дотла.',
-    hp: 85, speed: 100, dmg: 14, atkCd: 0.55, dodgeCd: 0.9,
+    hp: 90, speed: 100, dmg: 12, atkCd: 0.55, dodgeCd: 0.9, armor: 1.1,
     style: 'Дальній бій · вибухи',
     ability: { name: 'Пекельна Нова', desc: 'Кільце вогню: велика шкода та підпал усіх поруч.', cd: 8 },
     intro: 'Полум’я в твоїх долонях — єдине тепло, що лишилось у цьому світі. Воно шепоче. Ти вже навчився не слухати.',
@@ -25,7 +25,7 @@ const CLASSES = [
     id: 'ranger', name: 'Тіньовий Стрілець', icon: '🏹', color: '#4f7a5a', accent: '#a6e0b0',
     title: 'Мисливець Сутінків',
     desc: 'Слідопит, що вижив у Скверні. Найшвидший із усіх, стріляє влучно та часто — але кожен удар по ньому болить.',
-    hp: 105, speed: 118, dmg: 11, atkCd: 0.34, dodgeCd: 0.65,
+    hp: 85, speed: 118, dmg: 8.5, atkCd: 0.34, dodgeCd: 0.65, armor: 1.25,
     style: 'Дальній бій · швидкість',
     ability: { name: 'Злива Стріл', desc: 'Віялом випускає сім пронизливих стріл.', cd: 6 },
     intro: 'Ліс зник, лишилися лише мертві дерева. Але тятива співає так само, як раніше. Ціль — усе, що ще ворушиться.',
@@ -34,27 +34,33 @@ const CLASSES = [
     id: 'necro', name: 'Могильний Жрець', icon: '💀', color: '#6f9a86', accent: '#9cf0c8',
     title: 'Друг Мерців',
     desc: 'Служитель забутого культу, що не боїться кладовищ. Душі б’ють по ворогах самі, а мерці стають у стрій.',
-    hp: 95, speed: 100, dmg: 10, atkCd: 0.5, dodgeCd: 0.9,
+    hp: 86, speed: 100, dmg: 11, atkCd: 0.5, dodgeCd: 0.9, armor: 1.1,
     style: 'Дальній бій · слуги',
     ability: { name: 'Повстання Мерців', desc: 'Піднімає трьох кістяних слуг на 15 секунд.', cd: 12 },
     intro: 'Мертві не мовчать — вони розповідають тобі все. І найбільше — про Корону, що пожирає королів.',
   },
 ];
 
+// Параметри складності (їх підбирає tools/balance-sim.js)
+// (значення підібрані боєм-симулятором: node tools/balance-sim.js)
+const TUNE = { aggro: 360, alert: 220, shot: 235, eliteShot: 210, bossRest: 0.8, phase2: 0.55, summonEvery: 11, bossSummonN: 3, bossOrb: 0.24, lead: 1, bossAim: 1.7, potionDrop: 0.07 };
+// Складність: множники здоров'я та шкоди ворогів (Settings.v.diff = 0/1/2)
+const DIFF = [{ name: 'Легко', hp: 0.75, dmg: 0.65 }, { name: 'Нормально', hp: 1, dmg: 1 }, { name: 'Складно', hp: 1.3, dmg: 1.3 }];
+
 const ENEMIES = {
   dummy:    { name: 'Тренувальне опудало', hp: 80, speed: 0, dmg: 0, r: 12, range: 0, wind: 0, cd: 9, xp: 0, ai: 'dummy', kbRes: 1 },
-  skeleton: { name: 'Кістяний Воїн', hp: 34, speed: 62, dmg: 9, r: 11, range: 22, wind: 0.45, cd: 1.0, xp: 10, ai: 'melee' },
-  ghoul:    { name: 'Гуль', hp: 24, speed: 118, dmg: 7, r: 10, range: 20, wind: 0.25, cd: 0.7, xp: 8, ai: 'melee' },
-  cultist:  { name: 'Культист Безодні', hp: 26, speed: 55, dmg: 9, r: 10, range: 0, wind: 0.5, cd: 1.7, xp: 12, ai: 'ranged' },
-  brute:    { name: 'Плоть-Голем', hp: 120, speed: 46, dmg: 22, r: 20, range: 32, wind: 0.75, cd: 1.6, xp: 30, ai: 'melee', kbRes: 0.7 },
-  boss:     { name: 'Король Мальгорат', hp: 1400, speed: 58, dmg: 26, r: 28, xp: 400, ai: 'boss', kbRes: 1 },
+  skeleton: { name: 'Кістяний Воїн', hp: 40, speed: 96, dmg: 12, r: 11, range: 22, wind: 0.45, cd: 0.9, xp: 10, ai: 'melee' },
+  ghoul:    { name: 'Гуль', hp: 30, speed: 145, dmg: 9, r: 10, range: 20, wind: 0.25, cd: 0.7, xp: 8, ai: 'melee' },
+  cultist:  { name: 'Культист Безодні', hp: 32, speed: 80, dmg: 12, r: 10, range: 0, wind: 0.5, cd: 1.35, xp: 12, ai: 'ranged' },
+  brute:    { name: 'Плоть-Голем', hp: 150, speed: 70, dmg: 28, r: 20, range: 32, wind: 0.75, cd: 1.4, xp: 30, ai: 'melee', kbRes: 0.7 },
+  boss:     { name: 'Король Мальгорат', hp: 2600, speed: 78, dmg: 38, r: 28, xp: 400, ai: 'boss', kbRes: 1 },
 };
 
 const LEVELS = [
   {
-    name: 'Прокляті Землі', sub: 'Рівень I', w: 64, h: 44, seed: 1337, rooms: 9, scale: 1,
+    name: 'Прокляті Землі', sub: 'Рівень I', w: 64, h: 44, seed: 1337, rooms: 9, scale: 1.35,
     theme: { floor: ['#2d2b22', '#332f25', '#292720'], wall: '#12110d', face: '#26231b', accent: '#5b6b3a', ambient: 0.9 },
-    spawn: [['skeleton', 3], ['ghoul', 3], ['cultist', 1]], perRoom: [2, 4],
+    spawn: [['skeleton', 3], ['ghoul', 3], ['cultist', 2]], perRoom: [3, 5],
     elite: { type: 'brute', name: 'Вартовий Цвинтаря' },
     lore: [
       'Ще вчора тут звучали дзвони. Сьогодні дзвонить лише те, що не має права дзвонити.',
@@ -73,9 +79,9 @@ const LEVELS = [
     portalMsg: 'Вартовий упав. Портал до Катакомб відкрито.',
   },
   {
-    name: 'Катакомби Забутих Королів', sub: 'Рівень II', w: 68, h: 46, seed: 4242, rooms: 10, scale: 1.55,
+    name: 'Катакомби Забутих Королів', sub: 'Рівень II', w: 68, h: 46, seed: 4242, rooms: 10, scale: 3.0,
     theme: { floor: ['#23283a', '#272d40', '#202537'], wall: '#0b0d15', face: '#1a2033', accent: '#4a5f9a', ambient: 0.94 },
-    spawn: [['skeleton', 3], ['cultist', 3], ['ghoul', 2], ['brute', 1]], perRoom: [3, 5],
+    spawn: [['skeleton', 3], ['cultist', 4], ['ghoul', 3], ['brute', 1]], perRoom: [4, 6],
     elite: { type: 'cultist', name: 'Мати Скверни', big: true },
     lore: [
       'Тут спочивають королі Ашторна. Їхні саркофаги порожні. Хтось забрав їх — або вони самі пішли.',

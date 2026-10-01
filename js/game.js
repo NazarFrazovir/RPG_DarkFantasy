@@ -23,7 +23,7 @@ function hitsWall(x, y, r) {
   return false;
 }
 function moveEntity(e, dx, dy) {
-  const r = e.r * 0.85;
+  const r = Math.min(e.r * 0.85, 14); // великі вороги мають пролазити у 2-клітинні коридори (півширина 16)
   if (dx && !hitsWall(e.x + dx, e.y, r)) e.x += dx;
   if (dy && !hitsWall(e.x, e.y + dy, r)) e.y += dy;
 }
@@ -91,9 +91,9 @@ function createPlayer(c) {
 }
 
 function makeEnemy(type, x, y, elite, cfg) {
-  const d = ENEMIES[type], s = cfg ? cfg.scale : 1;
+  const d = ENEMIES[type], df = DIFF[Settings.v.diff] || DIFF[1], s = (cfg ? cfg.scale : 1) * df.dmg, sh = (cfg ? cfg.scale : 1) * df.hp;
   const e = {
-    type, name: d.name, x, y, r: d.r * (elite ? (cfg && cfg.elite.big ? 1.5 : 1.3) : 1), hp: d.hp * s * (elite ? 3.4 : 1), speed: d.speed, dmg: d.dmg * s * (elite ? 1.3 : 1),
+    type, name: d.name, x, y, r: d.r * (elite ? (cfg && cfg.elite.big ? 1.5 : 1.3) : 1), hp: d.hp * sh * (elite ? 3.4 : 1), speed: d.speed, dmg: d.dmg * s * (elite ? 1.3 : 1),
     range: d.range, wind: d.wind, cd: 0.5 + Math.random(), atkCd: d.cd, xp: d.xp * (elite ? 4 : 1), ai: d.ai, kbRes: d.kbRes || 0, elite: !!elite,
     aggro: false, atk: null, strike: 0, flash: 0, stun: 0, burn: 0, kx: 0, ky: 0, face: Math.random() * 6.283, dust: 0, t: Math.random() * 5, dead: false, minion: false,
   };
@@ -144,7 +144,7 @@ function startLevel(i, cp) {
   // вороги
   if (cfg.boss) {
     const b = makeEnemy('boss', (map.w / 2) * TS, 6.5 * TS, false, cfg);
-    b.hp = b.maxHp = ENEMIES.boss.hp * (1 + (P.level - 1) * 0.05); b.state = 'idle'; b.st = 1; b.summonCd = 6; b.phase = 1; b.name = ENEMIES.boss.name;
+    b.hp = b.maxHp = ENEMIES.boss.hp * (DIFF[Settings.v.diff] || DIFF[1]).hp * (1 + (P.level - 1) * 0.05); b.state = 'idle'; b.st = 1; b.summonCd = 6; b.phase = 1; b.name = ENEMIES.boss.name;
     enemies.push(b); G.boss = b;
   } else {
     const total = cfg.spawn.reduce((a, s) => a + s[1], 0);
@@ -251,6 +251,7 @@ function say(m) { G.msg = m; G.msgT = 3.5; }
 // ---------- Урон ----------
 function hurtPlayer(dmg, from) {
   if (P.inv > 0 || G.state !== 'play') return;
+  dmg *= P.cls.armor || 1; // множник вхідної шкоди класу (броня > 1 — крихкіший)
   P.hp -= dmg; P.inv = 0.45; P.flash = 0.15; G.shake = Math.max(G.shake, 7); G.stop = 0.07; P.hitDir = from ? Math.cos(angTo(from, P)) : 1;
   dmgFloat(P.x, P.y - 16, Math.round(dmg), '#ff5050', true); Sfx.play('hurt'); burst(P.x, P.y, '#a02020', 8, 120, 3);
   if (from) { const a = angTo(from, P); moveEntity(P, Math.cos(a) * 10, Math.sin(a) * 10); }
@@ -278,7 +279,7 @@ function killEnemy(e) {
   if (e.ai !== 'boss' && e.type !== 'skeleton') burst(e.x, e.y, e.type === 'ghoul' ? '#4a6a2a' : '#7a1010', 12, 140, 3.5, 0.8);
   const orbs = Math.min(6, Math.ceil(e.xp / 8));
   for (let i = 0; i < orbs; i++) pickups.push({ type: 'soul', x: e.x, y: e.y, v: e.xp / orbs, vx: rand(-80, 80), vy: rand(-80, 80), t: 0 });
-  if (!e.minion && Math.random() < (e.elite ? 1 : 0.12)) pickups.push({ type: 'potion', x: e.x, y: e.y, vx: 0, vy: 0, t: 0 });
+  if (!e.minion && Math.random() < (e.elite ? 1 : TUNE.potionDrop)) pickups.push({ type: 'potion', x: e.x, y: e.y, vx: 0, vy: 0, t: 0 });
   if (e.elite) { G.portalOpen = true; say(LEVELS[G.level].portalMsg); Sfx.play('level'); G.shake = 10; }
   if (e.ai === 'boss') bossDefeated();
 }
@@ -415,6 +416,10 @@ function pickTarget(e) {
   return t;
 }
 
+function leadAng(e, spd) {
+  const d = Math.hypot(P.x - e.x, P.y - e.y), t = (d / spd) * TUNE.lead;
+  return Math.atan2(P.y + (P.vy || 0) * t - e.y, P.x + (P.vx || 0) * t - e.x);
+}
 function enemyShoot(e, ang, spd = 190, dmg = e.dmg, r = 6, color = '#b04aff') {
   projs.push({ x: e.x, y: e.y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd, r, dmg, from: 'e', life: 4, color, hit: new Set(), t: 0, pierce: 0 });
 }
@@ -426,7 +431,7 @@ function updateEnemy(e, dt) {
   moveEntity(e, e.kx * dt, e.ky * dt); e.kx *= Math.pow(0.02, dt); e.ky *= Math.pow(0.02, dt);
   if (e.stun > 0) { e.stun -= dt; return; }
   const tgt = pickTarget(e), d = dist(e, tgt);
-  if (!e.aggro) { if (d < 300 && los(e, P) && tgt === P) e.aggro = true; else return; }
+  if (!e.aggro) { if (d < TUNE.aggro && los(e, P) && tgt === P) { e.aggro = true; if (TUNE.alert) enemies.forEach((o) => { if (!o.aggro && !o.dummy && !o.dead && dist(o, e) < TUNE.alert) o.aggro = true; }); } else return; }
   if (e.ai === 'boss') return updateBoss(e, dt, tgt, d);
   e.face = angTo(e, tgt);
   if (e.ai === 'melee') {
@@ -447,19 +452,20 @@ function updateEnemy(e, dt) {
     else if (d > 230 || !vis) steer(e, tgt, e.speed, dt);
     else { const a = e.face + Math.PI / 2; moveEntity(e, Math.cos(a) * e.speed * 0.5 * dt * (Math.sin(e.t) > 0 ? 1 : -1), Math.sin(a) * e.speed * 0.5 * dt * (Math.sin(e.t) > 0 ? 1 : -1)); }
     e.cd -= dt;
-    if (e.atk) { e.atk.t -= dt; if (e.atk.t <= 0) { const n = e.elite ? 5 : 1; for (let i = 0; i < n; i++) enemyShoot(e, e.face + (i - (n - 1) / 2) * 0.22, e.elite ? 170 : 190); e.atk = null; e.cd = e.atkCd; e.strike = 0.3; } }
+    if (e.atk) { e.atk.t -= dt; if (e.atk.t <= 0) { const n = e.elite ? 5 : 1, sp = e.elite ? TUNE.eliteShot : TUNE.shot, base = tgt === P && TUNE.lead ? leadAng(e, sp) : e.face; for (let i = 0; i < n; i++) enemyShoot(e, base + (i - (n - 1) / 2) * 0.22, sp); e.atk = null; e.cd = e.atkCd; e.strike = 0.3; } }
     else if (e.cd <= 0 && vis && d < 320) e.atk = { t: e.wind };
   }
 }
 
 function updateBoss(b, dt, tgt, d) {
-  const frac = b.hp / b.maxHp, phase2 = frac < 0.5;
+  const frac = b.hp / b.maxHp, phase2 = frac < TUNE.phase2;
   if (phase2 && b.phase === 1) { b.phase = 2; Music.phase2 = true; say('Мальгорат розлючений!'); Sfx.play('boss'); G.shake = 12; b.state = 'idle'; b.st = 0.6; }
   b.face = angTo(b, P); b.summonCd -= dt; b.st -= dt;
   const sp = b.speed * (phase2 ? 1.25 : 1);
   switch (b.state) {
     case 'idle':
-      steer(b, P, sp, dt);
+      steer(b, P, sp, dt); b.aimCd = (b.aimCd === undefined ? TUNE.bossAim : b.aimCd) - dt;
+      if (TUNE.bossAim && b.aimCd <= 0 && d > 150) { const a0 = leadAng(b, 240); for (let k = -1; k <= 1; k++) enemyShoot(b, a0 + k * 0.16, 240, b.dmg * 0.45, 6, '#ff5030'); b.aimCd = TUNE.bossAim; b.strike = 0.25; Sfx.play('magic'); }
       if (b.st <= 0) {
         const opts = ['burst'];
         if (d < 170) opts.push('slam', 'slam'); else opts.push('charge');
@@ -474,29 +480,29 @@ function updateBoss(b, dt, tgt, d) {
         if (dist(b, P) < 110 + P.r) hurtPlayer(b.dmg * 1.2, b);
         if (phase2) for (let i = 0; i < 10; i++) enemyShoot(b, (i / 10) * 6.283, 200, b.dmg * 0.5, 6, '#ff5030');
         b.strike = 0.35;
-        b.state = 'idle'; b.st = 1.1;
+        b.state = 'idle'; b.st = 1.1 * TUNE.bossRest;
       }
       break;
     case 'burst': {
       const per = phase2 ? 0.4 : 0.5;
       if (b.st < 1.6 - per * (b.n + 1) + 0.0 && b.n < 3) {
         const n = phase2 ? 16 : 12, off = b.n * 0.25 + Math.random() * 0.2;
-        for (let i = 0; i < n; i++) enemyShoot(b, (i / n) * 6.283 + off, 170, b.dmg * 0.45, 6, '#c03aff');
+        for (let i = 0; i < n; i++) enemyShoot(b, (i / n) * 6.283 + off, 170, b.dmg * TUNE.bossOrb, 6, '#c03aff');
         Sfx.play('magic'); b.n++; b.strike = 0.25;
       }
-      if (b.st <= 0) { b.state = 'idle'; b.st = 1.0; }
+      if (b.st <= 0) { b.state = 'idle'; b.st = 1.0 * TUNE.bossRest; }
       break;
     }
     case 'summon':
       if (b.st <= 0) {
-        Sfx.play('boss'); b.summonCd = 14;
-        for (let i = 0; i < 3; i++) {
-          const a = (i / 3) * 6.283 + Math.random(), sx = b.x + Math.cos(a) * 70, sy = b.y + Math.sin(a) * 70;
+        Sfx.play('boss'); b.summonCd = TUNE.summonEvery;
+        for (let i = 0; i < TUNE.bossSummonN; i++) {
+          const a = (i / TUNE.bossSummonN) * 6.283 + Math.random(), sx = b.x + Math.cos(a) * 70, sy = b.y + Math.sin(a) * 70;
           if (hitsWall(sx, sy, 10)) continue;
           const m = makeEnemy('skeleton', sx, sy, false, LEVELS[G.level]); m.minion = true; m.aggro = true; m.hp = m.maxHp = 30; m.xp = 4; enemies.push(m);
           burst(sx, sy, '#c03aff', 10, 80, 3);
         }
-        b.state = 'idle'; b.st = 1.2; b.strike = 0.4;
+        b.state = 'idle'; b.st = 1.2 * TUNE.bossRest; b.strike = 0.4;
       }
       break;
     case 'charge':
@@ -505,7 +511,7 @@ function updateBoss(b, dt, tgt, d) {
         b.dashing -= dt;
         const s = 460 * dt; moveEntity(b, Math.cos(b.chargeA) * s, Math.sin(b.chargeA) * s);
         if (dist(b, P) < b.r + P.r + 4) hurtPlayer(b.dmg * 1.1, b);
-        if (b.dashing <= 0 || hitsWall(b.x + Math.cos(b.chargeA) * 30, b.y + Math.sin(b.chargeA) * 30, 10)) { b.dashing = 0; b.state = 'idle'; b.st = 1.3; G.shake = 8; }
+        if (b.dashing <= 0 || hitsWall(b.x + Math.cos(b.chargeA) * 30, b.y + Math.sin(b.chargeA) * 30, 10)) { b.dashing = 0; b.state = 'idle'; b.st = 1.3 * TUNE.bossRest; G.shake = 8; }
       }
       break;
   }
@@ -585,7 +591,7 @@ function update(dt) {
   if (G.stop > 0) { G.stop -= dt; return; }
   const px0g = P.x, py0g = P.y;
   G.time += dt; G.titleT -= dt; G.msgT -= dt; G.toastT -= dt;
-  updatePlayer(dt);
+  updatePlayer(dt); P.vx = (P.x - px0g) / Math.max(dt, 1e-3); P.vy = (P.y - py0g) / Math.max(dt, 1e-3);
   flowT -= dt; if (flowT <= 0) { computeFlow(); flowT = 0.3; }
   enemies.forEach((e) => { if (!e.dead) updateEnemy(e, dt); });
   enemies = enemies.filter((e) => !e.dead);
@@ -780,7 +786,7 @@ function buildBinds() {
 function syncSettingsUI() {
   const set = (id, v) => { const el = $('#' + id); el.value = Math.round(v * 100); el.nextElementSibling.textContent = Math.round(v * 100) + '%'; };
   set('setMaster', Settings.v.master); set('setMusic', Settings.v.music); set('setSfx', Settings.v.sfx); set('setShake', Settings.v.shake);
-  $('#setMute').checked = Settings.v.muted; $('#setDmg').checked = Settings.v.dmgNums; $('#setHints').checked = Settings.v.hints;
+  $('#setMute').checked = Settings.v.muted; $('#setDmg').checked = Settings.v.dmgNums; $('#setHints').checked = Settings.v.hints; $('#setDiff').value = Settings.v.diff;
 }
 function updateKeyHints() { $('#dialog .hint').textContent = `[${keyLabel(Settings.binds.interact[0])}] / клік — далі`; }
 function openSettings(from) { settingsFrom = from; listen = null; $('#' + from).classList.add('hidden'); buildBinds(); syncSettingsUI(); $('#settings').classList.remove('hidden'); $('#settings').scrollTop = 0; }
@@ -792,6 +798,7 @@ function closeSettings() { listen = null; Settings.save(); $('#settings').classL
 });
 $('#setMute').onchange = () => { Settings.v.muted = $('#setMute').checked; Sfx.applyVol(); Settings.save(); syncSound(); };
 $('#setDmg').onchange = () => { Settings.v.dmgNums = $('#setDmg').checked; Settings.save(); };
+$('#setDiff').onchange = () => { Settings.v.diff = +$('#setDiff').value; Settings.save(); };
 $('#setHints').onchange = () => { Settings.v.hints = $('#setHints').checked; Settings.save(); if (!Settings.v.hints) tutHide(); };
 $('#btnSettings').onclick = () => { Sfx.init(); Sfx.play('click'); openSettings('menu'); };
 $('#btnPauseSet').onclick = () => { Sfx.play('click'); openSettings('pause'); };
