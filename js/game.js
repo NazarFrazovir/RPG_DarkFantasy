@@ -180,6 +180,12 @@ function startLevel(i, cp) {
     G.portalOpen = !!cp.portal; unpackExplored(cp.explored);
     P.x = cp.x; P.y = cp.y; cam.x = P.x; cam.y = P.y; G.cp = cp;
   } else { G.cp = makeCp(); saveGame(); }
+  if (i === 0 && typeof tutActive === 'function' && tutActive()) {
+    for (const [dx, dy] of [[-2.2, 0.3], [-1.8, 1.4], [-2.2, -1], [2.2, 1.6]]) {
+      const dxp = (first.cx + dx) * TS, dyp = (first.cy + dy) * TS;
+      if (!hitsWall(dxp, dyp, 16)) { const d = makeEnemy('dummy', dxp, dyp, false, cfg); d.dummy = true; d.face = 0; enemies.push(d); break; }
+    }
+  }
   G.titleT = 3.5; G.state = 'play';
 }
 
@@ -216,7 +222,7 @@ function toast(t) { G.toast = t; G.toastT = 2.6; }
 function saveGame(show) {
   if (!P || G.level === undefined) return;
   const player = {}; SAVE_FIELDS.forEach((k) => { player[k] = P[k]; });
-  const data = { v: 1, t: Date.now(), cls: P.cls.id, level: G.level, cp: G.cp, seen: G.seen, stats: { time: G.time, kills: G.kills, deaths: G.deaths }, player };
+  const data = { v: 1, t: Date.now(), cls: P.cls.id, level: G.level, cp: G.cp, seen: G.seen, stats: { time: G.time, kills: G.kills, deaths: G.deaths }, player, tut: G.tut ? { ...G.tut, okT: 0 } : null };
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); if (show) toast('Прогрес збережено'); }
   catch (e) { if (show) toast('Не вдалося зберегти (сховище недоступне)'); }
 }
@@ -229,6 +235,7 @@ function readSave() {
 }
 function deleteSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignore */ } }
 function checkpoint() {
+  if (G.tut) G.tut.rested = true;
   G.cp = { level: G.level, dead: [...G.dead], lore: [...G.loreTaken], portal: G.portalOpen, x: G.bonfire.x, y: G.bonfire.y + 38, explored: packExplored() };
   saveGame(true);
 }
@@ -236,7 +243,7 @@ function loadGame(d) {
   const cls = CLASSES.find((c) => c.id === d.cls); createPlayer(cls);
   SAVE_FIELDS.forEach((k) => { if (d.player[k] !== undefined) P[k] = d.player[k]; }); P.hp = P.maxHp;
   Object.assign(G, { time: d.stats.time || 0, kills: d.stats.kills || 0, deaths: d.stats.deaths || 0, seen: d.seen || {}, pendingPerks: 0 });
-  startLevel(d.level, d.cp); G.state = 'play'; say('Прогрес завантажено');
+  G.tut = d.tut || { ...newTut(), on: false, done: true }; startLevel(d.level, d.cp); G.state = 'play'; say('Прогрес завантажено');
 }
 function later(sec, fn) { G.timers.push({ t: sec, fn }); }
 function say(m) { G.msg = m; G.msgT = 3.5; }
@@ -256,6 +263,7 @@ function damageTarget(t, dmg, src) {
 function hitEnemy(e, base, ang, knock = 60, opt = {}) {
   if (e.dead) return;
   const crit = Math.random() < P.crit, dmg = Math.round(base * P.dmgMul * (crit ? 2 : 1) * (opt.mul || 1));
+  if (e.dummy) { e.flash = 0.18; e.wob = 0.35; dmgFloat(e.x + rand(-6, 6), e.y - 40, dmg + (crit ? '!' : ''), crit ? '#ffd24a' : '#fff', crit); burst(e.x, e.y - 18, '#d8c070', 6, 90, 2.5, 0.4); Sfx.play('hit'); if (G.tut) G.tut.hits = (G.tut.hits || 0) + 1; return; }
   e.hp -= dmg; e.flash = 0.12; e.aggro = true; e.hitAng = ang; if (crit) G.stop = Math.max(G.stop, 0.05);
   const kb = knock * (1 - e.kbRes); e.kx += Math.cos(ang) * kb * 5; e.ky += Math.sin(ang) * kb * 5;
   dmgFloat(e.x + rand(-6, 6), e.y - e.r - 6, dmg + (crit ? '!' : ''), crit ? '#ffd24a' : '#fff', crit);
@@ -318,7 +326,7 @@ function playerAttack(ang) {
   }
 }
 function playerAbility(ang) {
-  const c = P.cls.id; P.abT = P.cls.ability.cd * (1 - P.cdr); P.castT = 0.4;
+  const c = P.cls.id; P.abT = P.cls.ability.cd * (1 - P.cdr); P.castT = 0.4; if (G.tut) G.tut.ability = true;
   if (c === 'knight') {
     Sfx.play('slam'); G.shake = 9;
     effects.push({ k: 'ring', x: P.x, y: P.y, r: 120, t: 0, life: 0.4, color: '#d8b26a' });
@@ -347,6 +355,7 @@ function playerAbility(ang) {
 
 // ---------- Оновлення ----------
 function updatePlayer(dt) {
+  const px0 = P.x, py0 = P.y;
   P.atkT -= dt; P.dodgeCdT -= dt; P.abT -= dt; P.inv -= dt; P.flash -= dt; P.animT += dt; P.castT -= dt;
   const mwx = Input.mouse.x - W / 2 + cam.x, mwy = Input.mouse.y - H / 2 + cam.y, aim = Math.atan2(mwy - P.y, mwx - P.x);
   let dx = (Binds.down('right') ? 1 : 0) - (Binds.down('left') ? 1 : 0), dy = (Binds.down('down') ? 1 : 0) - (Binds.down('up') ? 1 : 0);
@@ -358,7 +367,7 @@ function updatePlayer(dt) {
     const sp = P.speed * P.spdMul; moveEntity(P, dx * sp * dt, dy * sp * dt);
     P.moving = !!m;
     if (Binds.pressed('dodge') && P.dodgeCdT <= 0) {
-      P.dodgeT = 0.2; P.inv = Math.max(P.inv, 0.32); P.dodgeCdT = P.cls.dodgeCd * P.dodgeMul;
+      if (G.tut) G.tut.dodged = true; P.dodgeT = 0.2; P.inv = Math.max(P.inv, 0.32); P.dodgeCdT = P.cls.dodgeCd * P.dodgeMul;
       P.dodgeDir = m ? { x: dx, y: dy } : { x: Math.cos(aim), y: Math.sin(aim) }; Sfx.play('dodge');
     }
     if (Input.mouse.down && P.atkT <= 0) playerAttack(aim);
@@ -411,6 +420,7 @@ function enemyShoot(e, ang, spd = 190, dmg = e.dmg, r = 6, color = '#b04aff') {
 }
 
 function updateEnemy(e, dt) {
+  if (e.dummy) { e.t += dt; e.flash -= dt; e.wob = Math.max(0, (e.wob || 0) - dt); return; }
   e.t += dt; e.flash -= dt; e.strike -= dt;
   if (e.burn > 0) { e.burn -= dt; e.hp -= 6 * dt * (P.dmgMul); if (Math.random() < dt * 8) parts.push({ x: e.x + rand(-6, 6), y: e.y + rand(-6, 6), vx: 0, vy: -30, life: 0.5, max: 0.5, size: 3, color: '#ff8a2a' }); if (e.hp <= 0) { killEnemy(e); return; } }
   moveEntity(e, e.kx * dt, e.ky * dt); e.kx *= Math.pow(0.02, dt); e.ky *= Math.pow(0.02, dt);
@@ -505,7 +515,7 @@ function updateAllies(dt) {
   allies.forEach((a) => {
     a.life -= dt; a.cd -= dt; a.flash -= dt;
     let t = null, bd = 320;
-    enemies.forEach((e) => { if (!e.dead) { const d = dist(a, e); if (d < bd) { bd = d; t = e; } } });
+    enemies.forEach((e) => { if (!e.dead && !e.dummy) { const d = dist(a, e); if (d < bd) { bd = d; t = e; } } });
     if (t) {
       a.face = angTo(a, t);
       if (bd > 20 + t.r) moveEntity(a, Math.cos(a.face) * a.speed * dt, Math.sin(a.face) * a.speed * dt);
@@ -573,6 +583,7 @@ function dust(x, y, big) {
 }
 function update(dt) {
   if (G.stop > 0) { G.stop -= dt; return; }
+  const px0g = P.x, py0g = P.y;
   G.time += dt; G.titleT -= dt; G.msgT -= dt; G.toastT -= dt;
   updatePlayer(dt);
   flowT -= dt; if (flowT <= 0) { computeFlow(); flowT = 0.3; }
@@ -596,6 +607,7 @@ function update(dt) {
   G.near = near;
   if (near && Binds.pressed('interact')) near.act();
   if (G.pendingPerks > 0 && G.state === 'play' && !G.noPerk) openPerks();
+  if (G.tut) { G.tut.moved = (G.tut.moved || 0) + Math.hypot(P.x - px0g, P.y - py0g); tutUpdate(dt); }
 }
 
 function playerDie() {
@@ -768,7 +780,7 @@ function buildBinds() {
 function syncSettingsUI() {
   const set = (id, v) => { const el = $('#' + id); el.value = Math.round(v * 100); el.nextElementSibling.textContent = Math.round(v * 100) + '%'; };
   set('setMaster', Settings.v.master); set('setMusic', Settings.v.music); set('setSfx', Settings.v.sfx); set('setShake', Settings.v.shake);
-  $('#setMute').checked = Settings.v.muted; $('#setDmg').checked = Settings.v.dmgNums;
+  $('#setMute').checked = Settings.v.muted; $('#setDmg').checked = Settings.v.dmgNums; $('#setHints').checked = Settings.v.hints;
 }
 function updateKeyHints() { $('#dialog .hint').textContent = `[${keyLabel(Settings.binds.interact[0])}] / клік — далі`; }
 function openSettings(from) { settingsFrom = from; listen = null; $('#' + from).classList.add('hidden'); buildBinds(); syncSettingsUI(); $('#settings').classList.remove('hidden'); $('#settings').scrollTop = 0; }
@@ -780,6 +792,7 @@ function closeSettings() { listen = null; Settings.save(); $('#settings').classL
 });
 $('#setMute').onchange = () => { Settings.v.muted = $('#setMute').checked; Sfx.applyVol(); Settings.save(); syncSound(); };
 $('#setDmg').onchange = () => { Settings.v.dmgNums = $('#setDmg').checked; Settings.save(); };
+$('#setHints').onchange = () => { Settings.v.hints = $('#setHints').checked; Settings.save(); if (!Settings.v.hints) tutHide(); };
 $('#btnSettings').onclick = () => { Sfx.init(); Sfx.play('click'); openSettings('menu'); };
 $('#btnPauseSet').onclick = () => { Sfx.play('click'); openSettings('pause'); };
 $('#btnSetBack').onclick = () => { Sfx.play('click'); closeSettings(); };
@@ -817,7 +830,7 @@ $('#btnStart').onclick = () => {
   if (!selClass || G.fading) return; Sfx.play('click'); const cls = selClass;
   fade(() => {
     $('#classes').classList.add('hidden'); MENU.hlHero = MENU.hlCard = null; document.body.style.cursor = '';
-    createPlayer(cls); Object.assign(G, { time: 0, kills: 0, deaths: 0, seen: {}, pendingPerks: 0 });
+    createPlayer(cls); Object.assign(G, { time: 0, kills: 0, deaths: 0, seen: {}, pendingPerks: 0 }); G.tut = newTut();
     startLevel(0); G.state = 'cine';
     Cine.start(cls, () => { G.state = 'play'; Music.play('lvl1'); });
   }, { out: 750, hold: 300, inn: 1000 });
@@ -925,7 +938,17 @@ function bossAnim(b, fx, fy) {
   return null;
 }
 
+function drawDummy(e) {
+  ctx.save(); ctx.translate(Math.round(e.x), Math.round(e.y + 8)); shadow(0, -8, 11);
+  ctx.rotate(Math.sin(e.t * 28) * (e.wob || 0) * 0.25); const fl = e.flash > 0;
+  ctx.fillStyle = fl ? '#fff' : '#5a3a1a'; ctx.fillRect(-2, -34, 4, 40); ctx.fillStyle = fl ? '#fff' : '#6a4a2a'; ctx.fillRect(-15, -26, 30, 4);
+  ctx.fillStyle = fl ? '#fff' : '#b89850'; ctx.fillRect(-9, -30, 18, 22); ctx.fillStyle = fl ? '#fff' : '#d4b468'; ctx.fillRect(-9, -30, 18, 3); ctx.fillStyle = '#7a5a28'; ctx.fillRect(-6, -22, 3, 1); ctx.fillRect(3, -18, 3, 1); ctx.fillRect(-4, -14, 4, 1);
+  ctx.fillStyle = fl ? '#fff' : '#d8b870'; ctx.fillRect(-7, -46, 14, 14); ctx.fillStyle = '#3a2410'; ctx.fillRect(-4, -42, 2, 2); ctx.fillRect(2, -42, 2, 2); ctx.fillRect(-3, -37, 6, 1);
+  ctx.fillStyle = fl ? '#fff' : '#8a3a2a'; ctx.fillRect(-9, -49, 18, 4); ctx.fillRect(-5, -53, 10, 4);
+  ctx.restore();
+}
 function drawEnemy(e, t) {
+  if (e.dummy) return drawDummy(e);
   ctx.save(); ctx.translate(Math.round(e.x), Math.round(e.y));
   const r = e.r, face = e.face, fx = Math.cos(face), fy = Math.sin(face), tel = e.atk ? 1 - e.atk.t / e.wind : 0;
   const mvd = Math.hypot(e.x - (e.lx === undefined ? e.x : e.lx), e.y - (e.ly === undefined ? e.y : e.ly)); e.lx = e.x; e.ly = e.y; e.mv = (e.mv || 0) * 0.85 + (mvd > 0.2 ? 0.15 : 0);
@@ -1308,6 +1331,7 @@ let last = performance.now(), clock = 0;
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now; clock += dt;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.imageSmoothingEnabled = false;
+  if (G.state !== 'play' && typeof tutHide === 'function' && G.state !== 'dialog' && G.state !== 'perk' && G.state !== 'pause') tutHide();
   if (G.state === 'cine') { Cine.frame(dt); Input.endFrame(); requestAnimationFrame(frame); return; }
   if (G.state === 'menu' || !map) drawMenuBg(clock);
   else {

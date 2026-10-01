@@ -163,3 +163,20 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: #c9a35a; cursor:
 .bindBtn.fixed { cursor: default; opacity: .55; border-color: #4a3a30; }
 #bindList + .btn { margin-top: 10px; }
 #confirm { z-index: 40; background: rgba(0,0,0,.78); }
+
+/* ===== НАВЧАННЯ ===== */
+#tut { position: fixed; top: clamp(64px, 10vh, 96px); left: 50%; transform: translateX(-50%); width: min(560px, 92vw); z-index: 8; background: rgba(10,6,12,.88); border: 1px solid #6a5030; border-left: 3px solid var(--gold); padding: 10px 16px 12px; box-shadow: 0 0 24px rgba(0,0,0,.7); animation: scrIn .4s ease both; }
+#tut .tutHead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+#tut .tutHead b { color: var(--gold); letter-spacing: .15em; text-transform: uppercase; font-size: 14px; }
+#tut .dots { display: flex; gap: 5px; }
+#tut .dots i { width: 8px; height: 8px; background: #2a1c18; border: 1px solid #5a4030; transform: rotate(45deg); }
+#tut .dots i.cur { background: #6a4a22; border-color: var(--gold); }
+#tut .dots i.on { background: var(--gold); border-color: var(--gold); box-shadow: 0 0 6px #ff9a3a; }
+#tut .tutText { font-size: 16px; line-height: 1.5; }
+#tut .tutText.ok { color: #9be08a; }
+#tut kbd { font-size: 12px; padding: 2px 7px; min-width: 24px; }
+#tut em { font-style: normal; color: #ffe8b0; }
+#tutSkip { background: none; border: 0; color: #8a7a62; font-family: var(--serif); font-size: 12px; letter-spacing: .08em; cursor: pointer; margin-top: 6px; padding: 0; }
+#tutSkip:hover { color: #ffc060; }
+#tip { position: fixed; bottom: clamp(100px, 16vh, 130px); left: 50%; transform: translateX(-50%); z-index: 8; background: rgba(60,20,16,.9); border: 1px solid #a04a30; padding: 8px 18px; font-size: 16px; animation: scrIn .3s ease both; max-width: 92vw; text-align: center; }
+#tip kbd { font-size: 12px; padding: 2px 7px; }

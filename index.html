@@ -32,7 +32,7 @@
     <button id="btnSound" class="mbtn" style="--i:4">Звук: увімк.</button>
   </nav>
   <div id="audioHint" class="audioHint">♪ Клікни будь-де — щоб увімкнути музику</div>
-  <footer class="foot">v1.0 · автозбереження</footer>
+  <footer class="foot">v1.1 · автозбереження</footer>
 </div>
 
 <!-- Налаштування -->
@@ -50,6 +50,7 @@
       <h3>Геймплей</h3>
       <label class="row2"><span>Тряска екрана</span><input type="range" id="setShake" min="0" max="100"><output></output></label>
       <label class="row2"><span>Цифри шкоди</span><input type="checkbox" id="setDmg"></label>
+      <label class="row2"><span>Підказки й навчання</span><input type="checkbox" id="setHints"></label>
     </section>
     <section>
       <h3>Керування <small>клік по клавіші — змінити · Backspace — очистити · Esc — скасувати</small></h3>
@@ -74,6 +75,9 @@
 </div>
 
 <!-- Діалоги -->
+<div id="tut" class="hidden"><div id="tutBody"></div><button id="tutSkip">Пропустити навчання</button></div>
+<div id="tip" class="hidden"></div>
+
 <div id="dialog" class="hidden">
   <div class="who"></div>
   <div class="txt"></div>
@@ -116,5 +120,6 @@
 <script src="js/music.js"></script>
 <script src="js/game.js"></script>
 <script src="js/cine.js"></script>
+<script src="js/tutorial.js"></script>
 </body>
 </html>

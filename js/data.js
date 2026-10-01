@@ -42,6 +42,7 @@ const CLASSES = [
 ];
 
 const ENEMIES = {
+  dummy:    { name: 'Тренувальне опудало', hp: 80, speed: 0, dmg: 0, r: 12, range: 0, wind: 0, cd: 9, xp: 0, ai: 'dummy', kbRes: 1 },
   skeleton: { name: 'Кістяний Воїн', hp: 34, speed: 62, dmg: 9, r: 11, range: 22, wind: 0.45, cd: 1.0, xp: 10, ai: 'melee' },
   ghoul:    { name: 'Гуль', hp: 24, speed: 118, dmg: 7, r: 10, range: 20, wind: 0.25, cd: 0.7, xp: 8, ai: 'melee' },
   cultist:  { name: 'Культист Безодні', hp: 26, speed: 55, dmg: 9, r: 10, range: 0, wind: 0.5, cd: 1.7, xp: 12, ai: 'ranged' },
