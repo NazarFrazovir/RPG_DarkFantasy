@@ -96,7 +96,7 @@ function makeEnemy(type, x, y, elite, cfg) {
   const d = ENEMIES[type], df = DIFF[Settings.v.diff] || DIFF[1], s = (cfg ? cfg.scale : 1) * df.dmg, sh = (cfg ? cfg.scale : 1) * df.hp;
   const e = {
     type, name: d.name, x, y, r: d.r * (elite ? (cfg && cfg.elite.big ? 1.5 : 1.3) : 1), hp: d.hp * sh * (elite ? 3.4 : 1), speed: d.speed, dmg: d.dmg * s * (elite ? 1.3 : 1),
-    range: d.range, wind: d.wind, cd: 0.5 + Math.random(), atkCd: d.cd, xp: d.xp * (elite ? 4 : 1), ai: d.ai, kbRes: d.kbRes || 0, elite: !!elite,
+    range: d.range, wind: d.wind, cd: 0.5 + Math.random(), atkCd: d.cd, xp: d.xp * (elite ? 4 : 1) * ((cfg && cfg.xpMul) || 1), ai: d.ai, kbRes: d.kbRes || 0, elite: !!elite,
     aggro: false, atk: null, strike: 0, flash: 0, stun: 0, burn: 0, kx: 0, ky: 0, face: Math.random() * 6.283, dust: 0, t: Math.random() * 5, dead: false, minion: false,
   };
   e.maxHp = e.hp;
@@ -107,7 +107,7 @@ function makeEnemy(type, x, y, elite, cfg) {
 function startLevel(i, cp) {
   G.level = i; const cfg = LEVELS[i], rng = mulberry32(cfg.seed);
   map = genMap(cfg, rng); TILES = buildTiles(cfg.theme, cfg.seed);
-  Music.play(['lvl1', 'lvl2', 'boss'][i]); Music.target = 0; Music.phase2 = false;
+  Music.play(['lvl1', 'lvl2', 'lvl3', 'lvl4', 'boss'][i]); Music.target = 0; Music.phase2 = false;
   enemies = []; projs = []; parts = []; pickups = []; texts = []; allies = []; props = []; effects = []; inter = []; corpses = []; zones = []; traps = []; G.lethal = {}; G.boomDepth = 0; G.timers = []; G.noPerk = false; G.stop = 0; G.pcorpse = null; P.castT = 0;
   explored = new Uint8Array(map.w * map.h); flow = null; flowT = 0; G.boss = null; G.portalOpen = false; G.shake = 0;
   const rooms = map.rooms, first = rooms[0], last = rooms[rooms.length - 1];
@@ -192,8 +192,8 @@ function startLevel(i, cp) {
 }
 
 function introLevel(i) {
-  if (i === 1 && !G.seen[1]) showDialog(STORY.level2.map((l) => ({ who: l[0], text: l[1] })));
-  if (i === 2 && !G.seen[2]) showDialog(STORY.level3.map((l) => ({ who: l[0], text: l[1] })));
+  const key = ['', 'level2', 'level3', 'level4', 'level5'][i];
+  if (key && !G.seen[i]) showDialog(STORY[key].map((l) => ({ who: l[0], text: l[1] })));
   G.seen[i] = true;
 }
 
@@ -309,10 +309,12 @@ function bossDefeated() {
   }));
 }
 
+const XP_NEED = [40, 75, 120, 180, 260, 360, 480, 620, 780];
+function xpNeed(lv) { return XP_NEED[Math.min(lv, XP_NEED.length) - 1]; }
 function gainXp(n) {
   P.xp += n * P.xpMul;
   while (P.xp >= P.xpNext) {
-    P.xp -= P.xpNext; P.level++; P.points++; P.xpNext = Math.round(P.xpNext * 1.35 + 15); recalcPlayer(); P.hp = Math.min(P.maxHp, P.hp + P.maxHp * 0.3);
+    P.xp -= P.xpNext; P.level++; P.points++; P.xpNext = xpNeed(P.level); recalcPlayer(); P.hp = Math.min(P.maxHp, P.hp + P.maxHp * 0.3);
     Sfx.play('level'); float(P.x, P.y - 30, 'РІВЕНЬ ' + P.level + '!', '#ffd24a', true); toast('Очко талантів! Натисни [' + keyLabel(Settings.binds.talents[0]) + ']'); G.askedTal = null;
   }
 }
@@ -895,7 +897,7 @@ function drawProp(p, t) {
     case 'bonfire': { ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.fillRect(-14, 8, 28, 4); ctx.fillStyle = '#3a2416'; ctx.fillRect(-14, 2, 28, 6); ctx.fillStyle = '#5a3a24'; ctx.fillRect(-12, 0, 24, 4); ctx.fillStyle = '#20120a'; ctx.fillRect(-14, 6, 28, 2);
       const f = Math.sin(t * 10) + Math.sin(t * 23) * 0.5, h = 18 + Math.round(f * 3);
       ctx.fillStyle = '#c8401a'; ctx.fillRect(-10, -h + 6, 20, h - 4); ctx.fillStyle = '#ff6a1a'; ctx.fillRect(-8, -h + 2, 16, h - 2); ctx.fillStyle = '#ffa030'; ctx.fillRect(-6, -h + 6, 12, h - 8); ctx.fillStyle = '#ffe08a'; ctx.fillRect(-3, -h + 12, 6, h - 12); break; }
-    case 'npc': { const ghost = G.level === 1, near = Math.hypot(P.x - p.x, P.y - p.y) < 170, face = near ? angTo(p, P) : 1.2, fl = ghost ? Math.round(Math.sin(t * 2) * 2) : 0;
+    case 'npc': { const ghost = !!LEVELS[G.level].npc.ghost, near = Math.hypot(P.x - p.x, P.y - p.y) < 170, face = near ? angTo(p, P) : 1.2, fl = ghost ? Math.round(Math.sin(t * 2) * 2) : 0;
       ctx.globalAlpha = ghost ? 0.75 + Math.sin(t * 2) * 0.1 : 1; shadow(0, 0, 11);
       drawChar(ghost ? 'eira' : 'raven', 0, 9 - fl - (ghost ? 3 : 0), { anim: 'idle', idx: Math.floor(t * 2.2 + p.x) % 4, face });
       ctx.globalAlpha = 1; ctx.fillStyle = '#e8c04a'; ctx.font = 'bold 18px Georgia'; ctx.textAlign = 'center'; ctx.fillText('!', 0, -46 + Math.sin(t * 4) * 2); break; }

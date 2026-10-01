@@ -54,13 +54,13 @@
       if (G.state === 'play') spendTalents();
       if (G.state === 'dead') {
         M.deaths++; M.deathLog.push({ lvl: G.level, by: lastSrc, t: Math.round(G.time), boss: !!(G.boss && !G.boss.dead) });
-        if (G.level === 2) M.bossTries++;
+        if (LEVELS[G.level].boss) M.bossTries++;
         if (M.deaths >= (opt.maxDeaths || 8)) { M.fail = 'deaths'; break; }
         startLevel(G.level, G.cp); P.inv = 1.5; B.field = null; continue;
       }
       if (G.state !== 'play') { M.fail = 'state:' + G.state; break; }
       if (G.time - levelStart > (opt.levelCap || 900)) { M.fail = 'stuck-level-' + G.level; break; }
-      if (G.level === 2 && G.boss && G.boss.dead) { M.win = true; M.bossTime = G.time; break; }
+      if (LEVELS[G.level].boss && G.boss && G.boss.dead) { M.win = true; M.bossTime = G.time; break; }
       control(B, M); update(DT); Input.endFrame();
     }
     // portal transitions happen inside control(); record final
