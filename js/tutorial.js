@@ -7,11 +7,12 @@ const TUT_STEPS = [
   { id: 'move', title: 'Рух', html: () => `Рухайся: ${kb('up')} ${kb('left')} ${kb('down')} ${kb('right')}`, ok: (t) => t.moved >= 150 },
   { id: 'attack', title: 'Атака', html: (t) => `Утримуй <kbd>ЛКМ</kbd> і цілься мишею — вдар опудало <em>${Math.min(3, t.hits || 0)}/3</em>`, ok: (t) => (t.hits || 0) >= 3 },
   { id: 'dodge', title: 'Ухилення', html: () => `Натисни ${kb('dodge')} — кувирок робить тебе невразливим на мить`, ok: (t) => t.dodged },
-  { id: 'ability', title: 'Здібність', html: () => `<b>${P.cls.ability.name}</b> — <kbd>ПКМ</kbd> або ${kb('ability')}. Перезаряджається ${P.cls.ability.cd} с`, ok: (t) => t.ability },
+  { id: 'ability', title: 'Здібність', html: () => `<b>${abilityName()}</b> — <kbd>ПКМ</kbd> або ${kb('ability')}. Перезаряджається ${Math.round(abilityCd())} с`, ok: (t) => t.ability },
   { id: 'rest', title: 'Вогнище', html: () => `Підійди до вогнища й натисни ${kb('interact')}: воно лікує, поповнює зілля (${kb('potion')}) і <b>зберігає гру</b>`, ok: (t) => t.rested },
   { id: 'goal', title: 'Мета', html: () => `Знайди й здолай <b>${LEVELS[0].elite.name}</b> — тоді відкриється портал. Мінікарта справа покаже, де ти був. Червоний сектор перед ворогом — замах: ухиляйся!`, ok: (t) => t.goalT >= 10 },
 ];
 const TUT_TIPS = {
+  points: () => `Є очко талантів! Відкрий дерево — ${kb('talents')}`,
   lowhp: () => `Мало здоров'я! Випий зілля — ${kb('potion')}`,
   telegraph: () => 'Червоний сектор перед ворогом — це замах. Ухились або відступи!',
   elite: () => 'Елітний ворог: міцніший і б\'є сильніше. Тримай дистанцію та вимірюй час ухилень.',
@@ -47,7 +48,8 @@ function tutUpdate(dt) {
     if (tipT > 0) { tipT -= dt; if (tipT <= 0) tipEl.classList.add('hidden'); }
     if (tipT <= 0) {
       let id = null;
-      if (!tips.lowhp && P.hp < P.maxHp * 0.35 && P.potions > 0) id = 'lowhp';
+      if (!tips.points && P.points > 0 && P.level >= 2) id = 'points';
+      else if (!tips.lowhp && P.hp < P.maxHp * 0.35 && P.potions > 0) id = 'lowhp';
       else if (!tips.telegraph && enemies.some((e) => e.atk && e.ai === 'melee' && dist(e, P) < 150)) id = 'telegraph';
       else if (!tips.elite && enemies.some((e) => e.elite && e.aggro)) id = 'elite';
       if (id) { tips[id] = true; tipEl.innerHTML = TUT_TIPS[id](); tipEl.classList.remove('hidden'); tipT = 6; Sfx.tone(700, 0.08, 'triangle', 0.05); }

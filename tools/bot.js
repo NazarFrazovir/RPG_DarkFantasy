@@ -39,7 +39,7 @@
   window.runBot = function (clsId, seed, opt = {}) {
     Math.random = mulberry32(seed);
     const cls = CLASSES.find((c) => c.id === clsId); createPlayer(cls);
-    Object.assign(G, { time: 0, kills: 0, deaths: 0, seen: {}, pendingPerks: 0 }); G.tut = { on: false, done: true, tips: {} };
+    Object.assign(G, { time: 0, kills: 0, deaths: 0, seen: {} }); G.tut = { on: false, done: true, tips: {} };
     const skill = opt.skill === undefined ? 0.85 : opt.skill;
     const M = { skill, dmgLv: [0, 0, 0], cls: clsId, seed, win: false, fail: null, deaths: 0, deathLog: [], levelTimes: [], dmg: 0, potions: 0, kills: 0, time: 0, plevel: 1, bossTime: null, bossTries: 0 };
     const origHurt = hurtPlayer; let lastSrc = '?';
@@ -50,7 +50,8 @@
     while (tick < maxTicks) {
       tick++;
       if (G.state === 'dialog') { if (D.choices) { M.win = true; break; } D.pos = D.full.length; dlgAdvance(); continue; }
-      if (G.state === 'perk') { const pool = G.perkPool; pool.sort((a, b) => PREF.indexOf(a.id) - PREF.indexOf(b.id)); choosePerk(pool[0]); continue; }
+      if (G.state === 'talents') { spendTalents(); closeTalents(); continue; }
+      if (G.state === 'play') spendTalents();
       if (G.state === 'dead') {
         M.deaths++; M.deathLog.push({ lvl: G.level, by: lastSrc, t: Math.round(G.time), boss: !!(G.boss && !G.boss.dead) });
         if (G.level === 2) M.bossTries++;
@@ -63,9 +64,16 @@
       control(B, M); update(DT); Input.endFrame();
     }
     // portal transitions happen inside control(); record final
-    M.time = Math.round(G.time); M.kills = G.kills; M.plevel = P.level; M.maxHp = P.maxHp; M.perks = Object.assign({}, P.perks); M.potionsLeft = P.potions;
+    M.time = Math.round(G.time); M.kills = G.kills; M.plevel = P.level; M.maxHp = P.maxHp; M.sub = P.sub; M.asc = P.asc; M.talents = P.talents.length; M.potionsLeft = P.potions;
     hurtPlayer = origHurt; return M;
 
+    function spendTalents() {
+      const t = TALENTS[P.cls.id], order = [0, 1, 2].map((i) => t.branches[(i + seed) % 3]);
+      let guard = 0;
+      while (P.points > 0 && guard++ < 20) { let bought = false; for (const b of order) { for (const n of b.nodes) { if (nodeState(n) === 'available') { buyTalent(n.id); bought = true; break; } } if (bought) break; } if (!bought) break; }
+      if (needSub()) chooseSub(t.subs[seed % 2].id);
+      if (needAsc()) chooseAsc(SUB_BY_ID[P.sub].ascs[(seed >> 1) % 2].id);
+    }
     function nextLevel() { M.levelTimes.push(Math.round(G.time - levelStart)); levelStart = G.time; const n = G.level + 1; startLevel(n); introLevel(n); B.field = null; }
     function control(B, M) {
       const live = enemies.filter((e) => !e.dead && !e.dummy), K = new Set(); Input.keys.clear(); Input.mouse.down = false; Input.mouse.rEdge = false;

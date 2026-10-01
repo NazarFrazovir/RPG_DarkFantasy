@@ -25,9 +25,9 @@ function hash2(x, y) {
 const SETTINGS_KEY = 'ashtorn.settings.v1';
 const DEFAULT_BINDS = {
   up: ['KeyW', 'ArrowUp'], down: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'],
-  dodge: ['Space', ''], ability: ['KeyQ', ''], potion: ['KeyF', ''], interact: ['KeyE', ''], mute: ['KeyM', ''], fullscreen: ['KeyG', ''],
+  dodge: ['Space', ''], ability: ['KeyQ', ''], potion: ['KeyF', ''], interact: ['KeyE', ''], talents: ['KeyT', ''], mute: ['KeyM', ''], fullscreen: ['KeyG', ''],
 };
-const BIND_NAMES = { up: 'Вгору', down: 'Вниз', left: 'Ліворуч', right: 'Праворуч', dodge: 'Ухилення', ability: 'Здібність класу', potion: 'Зілля', interact: 'Взаємодія', mute: 'Вимк./увімк. звук', fullscreen: 'Повний екран' };
+const BIND_NAMES = { up: 'Вгору', down: 'Вниз', left: 'Ліворуч', right: 'Праворуч', dodge: 'Ухилення', ability: 'Здібність класу', potion: 'Зілля', interact: 'Взаємодія', talents: 'Таланти', mute: 'Вимк./увімк. звук', fullscreen: 'Повний екран' };
 const Settings = {
   v: { master: 0.8, music: 0.8, sfx: 0.9, shake: 1, dmgNums: true, hints: true, diff: 1, muted: false },
   binds: JSON.parse(JSON.stringify(DEFAULT_BINDS)),
