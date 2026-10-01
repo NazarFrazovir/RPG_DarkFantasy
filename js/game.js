@@ -87,7 +87,7 @@ function createPlayer(c) {
     cls: c, x: 0, y: 0, r: 10, hp: c.hp, maxHp: c.hp, speed: c.speed, dmg: c.dmg, atkT: 0, dodgeT: 0, dodgeCdT: 0, dodgeDir: { x: 0, y: 1 },
     inv: 0, abT: 0, potions: 3, maxPotions: 3, potionHeal: 0.4, level: 1, xp: 0, xpNext: 40, crit: 0.05, lifesteal: 0, face: 0, flash: 0,
     dmgMul: 1, spdMul: 1, asMul: 1, cdr: 0, dodgeMul: 1, xpMul: 1, magnet: 110, vx: 0, vy: 0, animT: 0,
-    bag: [], equip: {}, talents: [], points: 0, sub: null, asc: null, souls: 0, soulCount: 0, shield: 0, shieldT: 0, bShield: 0, bRegen: 6, autoT: 0, houndT: 0, parryT: 0, invisT: 0, wallT: 0, ghostT: 0, swings: 0, emberLeft: 0, arrows: 0,
+    ash: 0, bag: [], equip: {}, talents: [], points: 0, sub: null, asc: null, souls: 0, soulCount: 0, shield: 0, shieldT: 0, bShield: 0, bRegen: 6, autoT: 0, houndT: 0, parryT: 0, invisT: 0, wallT: 0, ghostT: 0, swings: 0, emberLeft: 0, arrows: 0,
   };
   recalcPlayer();
 }
@@ -141,6 +141,12 @@ function startLevel(i, cp) {
     const p = { x: (first.cx + 3.2) * TS, y: (first.cy + 0.5) * TS };
     props.push({ type: 'npc', x: p.x, y: p.y, ph: 0 });
     inter.push({ x: p.x, y: p.y, r: 46, label: 'Поговорити: ' + cfg.npc.name, act: () => showDialog(cfg.npc.lines.map((l) => ({ who: l[0], text: l[1] }))) });
+  }
+
+  if (!cfg.boss) {
+    let mx = (first.cx - 3.2) * TS, my = (first.cy + 0.5) * TS; if (hitsWall(mx, my, 14)) { mx = (first.cx + 0.5) * TS; my = (first.cy + 2.8) * TS; }
+    props.push({ type: 'merchant', x: mx, y: my, ph: 0 }); G.shop = null;
+    inter.push({ x: mx, y: my, r: 50, label: 'Торгувати: Кост', act: () => openShop() });
   }
 
   // вороги
@@ -208,7 +214,7 @@ function dmgFloat(x, y, text, color, big) { if (Settings.v.dmgNums) float(x, y, 
 function float(x, y, text, color = '#fff', big = false) { texts.push({ x, y, text, color, t: 0, big }); }
 // ---------- Збереження й чекпоінти ----------
 const SAVE_KEY = 'ashtorn.save.v1';
-const SAVE_FIELDS = ['level', 'xp', 'xpNext', 'potions', 'talents', 'points', 'sub', 'asc', 'bag', 'equip'];
+const SAVE_FIELDS = ['level', 'xp', 'xpNext', 'potions', 'talents', 'points', 'sub', 'asc', 'bag', 'equip', 'ash'];
 function packExplored() {
   if (!explored || !explored.length) return [];
   const out = [explored[0]]; let run = 1;
@@ -294,7 +300,7 @@ function killEnemy(e) {
   const orbs = Math.min(6, Math.ceil(e.xp / 8));
   for (let i = 0; i < orbs; i++) pickups.push({ type: 'soul', x: e.x, y: e.y, v: e.xp / orbs, vx: rand(-80, 80), vy: rand(-80, 80), t: 0 });
   if (!e.minion && Math.random() < (e.elite ? 1 : TUNE.potionDrop)) pickups.push({ type: 'potion', x: e.x, y: e.y, vx: 0, vy: 0, t: 0 });
-  dropLoot(e);
+  dropLoot(e); dropCoins(e);
   if (e.elite) { G.portalOpen = true; say(LEVELS[G.level].portalMsg); Sfx.play('level'); G.shake = 10; }
   if (e.ai === 'boss') bossDefeated();
 }
@@ -581,6 +587,7 @@ function updatePickups(dt) {
     if (p.type === 'soul') {
       if (p.t > 0.4 && d < P.magnet) { const a = angTo(p, P), s = 220 + (P.magnet - d) * 4; p.x += Math.cos(a) * s * dt; p.y += Math.sin(a) * s * dt; }
       if (d < 14) { p.done = true; gainXp(p.v); Sfx.play('pickup'); }
+    } else if (p.type === 'coin') { updateCoin(p, d, dt);
     } else if (p.type === 'item') { updateItemDrop(p, d);
     } else if (p.type === 'potion' && d < 18) {
       p.done = true; if (P.potions < P.maxPotions) P.potions++; Sfx.play('pickup'); float(P.x, P.y - 20, '+ зілля', '#55ff88');
@@ -604,7 +611,7 @@ function dust(x, y, big) {
 function update(dt) {
   if (G.stop > 0) { G.stop -= dt; return; }
   const px0g = P.x, py0g = P.y;
-  G.time += dt; G.titleT -= dt; G.msgT -= dt; G.toastT -= dt;
+  G.time += dt; G.titleT -= dt; G.msgT -= dt; G.toastT -= dt; G.ashFlash = Math.max(0, (G.ashFlash || 0) - dt);
   updatePlayer(dt); tickPlayerExt(dt); zonesTick(dt); P.vx = (P.x - px0g) / Math.max(dt, 1e-3); P.vy = (P.y - py0g) / Math.max(dt, 1e-3);
   flowT -= dt; if (flowT <= 0) { computeFlow(); flowT = 0.3; }
   enemies.forEach((e) => { if (!e.dead) updateEnemy(e, dt); });
@@ -855,6 +862,7 @@ document.querySelectorAll('.fsBtn').forEach((b) => (b.onclick = () => { toggleFs
 addEventListener('keydown', (e) => {
   if (Binds.matches('fullscreen', e.code)) toggleFs();
   if (Binds.matches('mute', e.code)) { Sfx.toggle(); syncSound(); }
+  if (G.state === 'shop' && !e.repeat && (e.code === 'Escape' || Binds.matches('interact', e.code))) { closeShop(); e.escUsed = true; return; }
   if (G.state === 'inv' && !e.repeat && (e.code === 'Escape' || Binds.matches('inv', e.code))) { closeInv(); e.escUsed = true; return; }
   if (G.state === 'talents' && !e.repeat && (e.code === 'Escape' || Binds.matches('talents', e.code))) { closeTalents(); e.escUsed = true; return; }
   if ((e.code === 'Escape' || e.code === 'KeyP') && !e.repeat && !e.escUsed) {
@@ -905,6 +913,10 @@ function drawProp(p, t) {
       ctx.globalAlpha = ghost ? 0.75 + Math.sin(t * 2) * 0.1 : 1; shadow(0, 0, 11);
       drawChar(ghost ? 'eira' : 'raven', 0, 9 - fl - (ghost ? 3 : 0), { anim: 'idle', idx: Math.floor(t * 2.2 + p.x) % 4, face });
       ctx.globalAlpha = 1; ctx.fillStyle = '#e8c04a'; ctx.font = 'bold 18px Georgia'; ctx.textAlign = 'center'; ctx.fillText('!', 0, -46 + Math.sin(t * 4) * 2); break; }
+    case 'merchant': { const near = Math.hypot(P.x - p.x, P.y - p.y) < 170, face = near ? angTo(p, P) : 1.2;
+      shadow(0, 0, 11); drawChar('merchant', 0, 9, { anim: 'idle', idx: Math.floor(t * 2 + p.x) % 4, face });
+      ctx.fillStyle = '#8a5a2a'; ctx.fillRect(14, 2, 12, 12); ctx.fillStyle = '#b8803a'; ctx.fillRect(14, 2, 12, 4); ctx.fillStyle = '#e8c04a'; ctx.fillRect(18, -2, 4, 4);
+      ctx.fillStyle = '#f0c040'; ctx.font = 'bold 16px Georgia'; ctx.textAlign = 'center'; ctx.fillText('◆', 0, -46 + Math.sin(t * 4) * 2); break; }
     case 'scroll': ctx.fillStyle = '#d8c48a'; ctx.fillRect(-7, -4, 14, 8); ctx.fillStyle = '#8a6a3a'; ctx.fillRect(-8, -5, 3, 10); ctx.fillRect(5, -5, 3, 10); ctx.fillStyle = '#6a4a2a'; ctx.fillRect(-3, -2, 6, 1); ctx.fillRect(-3, 1, 6, 1);
       if (Math.floor(t * 3 + p.ph) % 2) { ctx.fillStyle = '#ffe08a'; ctx.fillRect(9, -9, 2, 2); ctx.fillRect(-11, -3, 2, 2); } break;
     case 'portal': { const open = G.portalOpen, col = open ? '#a25aff' : '#666a76', col2 = open ? '#e0c0ff' : '#888';
@@ -1093,6 +1105,7 @@ function drawWorld(t) {
     const by = Math.round(p.y + Math.sin(p.t * 6) * 2), bx = Math.round(p.x);
     if (p.type === 'soul') { ctx.fillStyle = 'rgba(120,220,255,.25)'; ctx.fillRect(bx - 6, by - 6, 12, 12); ctx.fillStyle = '#7adcff'; ctx.fillRect(bx - 3, by - 3, 6, 6); ctx.fillStyle = '#eaffff'; ctx.fillRect(bx - 1, by - 1, 2, 2); }
     else if (p.type === 'item') drawItemDrop(p, bx, by);
+    else if (p.type === 'coin') drawCoin(p, bx, by);
     else { ctx.fillStyle = '#ddd'; ctx.fillRect(bx - 2, by - 9, 4, 4); ctx.fillStyle = '#7a1a34'; ctx.fillRect(bx - 5, by - 5, 10, 10); ctx.fillStyle = '#d0304e'; ctx.fillRect(bx - 4, by - 4, 8, 6); ctx.fillStyle = '#ff90a0'; ctx.fillRect(bx - 3, by - 3, 2, 2); }
   });
   drawExt(t); corpses.forEach(drawCorpse);
@@ -1153,6 +1166,7 @@ function drawHUD(t, sx, sy) {
   ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(16, 46, bw + 4, 12); ctx.fillStyle = '#12303a'; ctx.fillRect(18, 48, bw, 8); ctx.fillStyle = '#4ac0e0'; ctx.fillRect(18, 48, bw * (P.xp / P.xpNext), 8);
   ctx.fillStyle = '#c9a35a'; ctx.fillText(`${P.cls.name} · Рівень ${P.level}` + (P.sub ? ' · ' + SUB_BY_ID[P.sub].name : ''), 18, 76);
   if (P.points > 0 || needSub() || needAsc()) { ctx.fillStyle = Math.floor(t * 2) % 2 ? '#ffd24a' : '#fff2c8'; ctx.fillText('✦ ' + (needSub() ? 'обери підклас' : needAsc() ? 'обери вознесіння' : 'очок талантів: ' + P.points) + ' — [' + keyLabel(Settings.binds.talents[0]) + ']', 18, 94); }
+  ctx.fillStyle = G.ashFlash > 0 ? '#fff0b0' : '#f0c040'; ctx.fillText('◆ Попіл: ' + P.ash, 18, 112);
   if (P.shield > 0 || P.bShield > 0) { ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(18, 40, bw, 5); ctx.fillStyle = P.shield > 0 ? '#d8b26a' : '#cfc8b0'; ctx.fillRect(18, 40, bw * Math.min(1, (P.shield + P.bShield) / 60), 5); }
   // Кулдауни
   const slots = [

@@ -233,3 +233,21 @@ canvas.itemIcon { position: static; width: 48px; height: 48px; cursor: pointer; 
 .tipBox .aff { color: #8ad0ff; }
 .tipHint { opacity: .55; }
 @media (max-width: 760px) { #invWrap { grid-template-columns: 1fr; justify-items: center; } }
+
+/* ---- Торговець ---- */
+#shop { justify-content: flex-start; padding-top: clamp(10px, 4vh, 40px); gap: 10px; overflow-y: auto; background: radial-gradient(ellipse at center, rgba(14,8,4,.93), rgba(2,1,3,.98)); }
+#shop h2 { margin: 0; }
+#shopAsh b { color: #f0c040; }
+#shopWrap { display: grid; grid-template-columns: minmax(280px, 340px) minmax(280px, 340px) minmax(230px, 270px); gap: 18px; align-items: start; text-align: left; }
+#shopWrap h4 { margin: 0 0 6px; color: var(--gold); letter-spacing: .15em; text-transform: uppercase; font-size: 14px; }
+#shopStock, #shopBag { display: flex; flex-direction: column; gap: 6px; }
+#shopPotion { margin-top: 8px; }
+.shopRow { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border: 1px solid var(--rc, #3a2a22); background: rgba(20,12,14,.85); cursor: pointer; }
+.shopRow:hover { background: rgba(60,30,18,.9); }
+.shopRow.off { opacity: .45; }
+.shopRow canvas.itemIcon { width: 32px; height: 32px; flex: none; }
+.shopTxt { flex: 1; min-width: 0; }
+.shopTxt b { display: block; font-size: 14px; }
+.shopTxt small { display: block; font-size: 11px; opacity: .7; line-height: 1.3; }
+.price { color: #f0c040; font-size: 14px; white-space: nowrap; }
+@media (max-width: 960px) { #shopWrap { grid-template-columns: 1fr; justify-items: center; } }

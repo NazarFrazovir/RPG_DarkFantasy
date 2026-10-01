@@ -188,6 +188,7 @@ function initRig() {
   defChar('cultist', 24, 2, rb({ robe: '#3a1a4a', hood: '#4a2260', trim: '#a02a6a', skin: '#0d0810', eye: '#d060ff', glow: '#7a2aa0', tall: true, float: true, chest: '#d060ff' }));
   defChar('cultistElite', 24, 2, rb({ robe: '#5a1830', hood: '#8a2040', trim: '#e0a040', skin: '#0d0810', eye: '#ff7040', glow: '#a03020', tall: true, float: true, chest: '#ff7040' }));
   defChar('raven', 24, 2, rb({ robe: '#4a4038', hood: '#6a6a70', trim: '#a08a5a', skin: '#e8dcc8', eye: '#6a8aa0', beard: true, staffStatic: true }));
+  defChar('merchant', 24, 2, rb({ robe: '#5a3418', hood: '#8a5a2a', trim: '#e0b040', skin: '#e2c09a', eye: '#2a1a10', staffStatic: true, quiver: true }));
   defChar('eira', 24, 2, rb({ robe: '#7a8ab8', hood: '#9aaad8', trim: '#dfe8ff', skin: '#e8f0ff', eye: '#b0d0ff', ghost: true, float: true }));
   defChar('skeleton', 24, 2, drawSkeleton);
   defChar('minion', 24, 2, (h, p, v) => drawSkeleton({ R: (x, y, w, hh, c) => h.R(x, y, w, hh, tint(c)) }, p, v));
