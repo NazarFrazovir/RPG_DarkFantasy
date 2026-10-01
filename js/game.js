@@ -699,11 +699,17 @@ $('#btnStart').onclick = () => {
 $('#btnRevive').onclick = () => { $('#dead').classList.add('hidden'); P.inv = 1.5; startLevel(G.level); say('Ти воскрес біля вогнища.'); };
 $('#btnAgain').onclick = () => { Music.play('menu'); $('#ending').classList.add('hidden'); $('#menu').classList.remove('hidden'); G.state = 'menu'; };
 function endGame(k) {
-  const e = STORY.endings[k]; G.state = 'end'; Music.target = 0; Music.play(k === 'destroy' ? 'end_good' : 'end_dark');
-  $('#endTitle').textContent = e.title; $('#endText').textContent = e.text;
-  const m = Math.floor(G.time / 60), s = Math.floor(G.time % 60);
-  $('#endStats').textContent = `${P.cls.name} · рівень ${P.level} · вбито ворогів: ${G.kills} · смертей: ${G.deaths} · час: ${m}:${String(s).padStart(2, '0')}`;
-  $('#ending').classList.remove('hidden');
+  const e = STORY.endings[k];
+  fade(() => {
+    $('#dialog').classList.add('hidden'); G.state = 'cine'; Music.target = 0;
+    Cine.start(P.cls, () => {
+      G.state = 'end'; Music.play(k === 'destroy' ? 'end_good' : 'end_dark');
+      $('#endTitle').textContent = e.title; $('#endText').textContent = e.text;
+      const m = Math.floor(G.time / 60), s = Math.floor(G.time % 60);
+      $('#endStats').textContent = `${P.cls.name} · рівень ${P.level} · вбито ворогів: ${G.kills} · смертей: ${G.deaths} · час: ${m}:${String(s).padStart(2, '0')}`;
+      $('#ending').classList.remove('hidden');
+    }, k);
+  }, { out: 900, hold: 250, inn: 900 });
 }
 
 function toggleFs() {

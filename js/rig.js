@@ -221,7 +221,8 @@ function drawChar(name, x, y, o = {}) {
   if (o.rot) ctx.rotate(o.rot);
   ctx.scale((flip ? -1 : 1) * (o.sx || 1), o.sy || 1);
   if (o.outline) { const sil = silhouette(img, o.outline), pa = ctx.globalAlpha; ctx.globalAlpha = pa * (o.outlineA === undefined ? 1 : o.outlineA); [[-1, 0], [1, 0], [0, -1], [0, 1]].forEach(([dx, dy]) => ctx.drawImage(sil, -w / 2 + dx * sc, -h + dy * sc, w, ch.size * sc)); ctx.globalAlpha = pa; }
-  if (o.cut) { const cut = Math.floor(o.cut * ch.size); ctx.drawImage(img, 0, cut, ch.size, ch.size - cut, -w / 2, -h + cut * sc, w, (ch.size - cut) * sc); }
-  else ctx.drawImage(img, -w / 2, -h, w, ch.size * sc);
+  const drawMain = () => { if (o.cut) { const cut = Math.floor(o.cut * ch.size); ctx.drawImage(img, 0, cut, ch.size, ch.size - cut, -w / 2, -h + cut * sc, w, (ch.size - cut) * sc); } else ctx.drawImage(img, -w / 2, -h, w, ch.size * sc); };
+  drawMain();
+  if (o.tint) { const pa = ctx.globalAlpha; ctx.globalAlpha = pa * (o.tintA === undefined ? 0.5 : o.tintA); ctx.drawImage(silhouette(img, o.tint), -w / 2, -h, w, ch.size * sc); ctx.globalAlpha = pa; }
   ctx.restore();
 }
