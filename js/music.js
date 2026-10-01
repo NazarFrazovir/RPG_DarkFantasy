@@ -24,6 +24,11 @@ const TRACKS = {
     bass: [0, 2, 4, 6, 8, 10, 12, 14], arp: [1, 3, 5, 7, 9, 11, 13, 15], arpVol: 0.035, scale: [64, 67, 69, 71, 72, 74, 76, 79], mel: [0, 6, 12], melP: 0.6, bell: 0.06,
     kick: [0, 8, 10], tom: [14, 15], hat: [0, 2, 4, 6, 8, 10, 12, 14], snare: [4, 12], stab: [0, 3, 10], stabVol: 0.05, alwaysDrums: false,
   },
+  cine: {
+    bpm: 54, chords: [[38, 41, 45], [34, 38, 41], [31, 34, 38], [33, 37, 40]], padVol: 0.065, choir: 0.05, whisper: true,
+    bass: [0], arp: [], arpVol: 0, scale: [62, 64, 65, 67, 69, 70, 72, 74], mel: [0, 8], melP: 0.6, bell: 0.08,
+    kick: [0], tom: [8, 14], hat: [], snare: [],
+  },
   end_good: {
     bpm: 66, chords: [[50, 54, 57], [45, 49, 52], [47, 50, 54], [43, 47, 50]], padVol: 0.05, choir: 0.04,
     bass: [0], arp: [0, 2, 4, 6, 8, 10, 12, 14], arpVol: 0.06, scale: [62, 64, 66, 69, 71, 74, 76, 78], mel: [0, 4, 8, 12], melP: 0.7, bell: 0.08,

@@ -682,6 +682,7 @@ addEventListener('keydown', (e) => {
 });
 menuSelect(0);
 addEventListener('mousemove', (e) => { MENU.overUI = !!(e.target.closest && e.target.closest('button, .card, .keys')); });
+addEventListener('click', () => { if (G.state === 'cine' && Cine.t > 1.5) Cine.skipping = true; });
 addEventListener('click', (e) => {
   if (G.state !== 'menu' || MENU.hlHero === null || G.fading || (e.target.closest && e.target.closest('button, .card'))) return;
   const i = MENU.hlHero; if (!$('#classes').classList.contains('hidden')) selectClass(i); else if (!$('#menu').classList.contains('hidden')) goClasses(i);
@@ -691,8 +692,8 @@ $('#btnStart').onclick = () => {
   fade(() => {
     $('#classes').classList.add('hidden'); MENU.hlHero = MENU.hlCard = null; document.body.style.cursor = '';
     createPlayer(cls); Object.assign(G, { time: 0, kills: 0, deaths: 0, seen: {}, pendingPerks: 0 });
-    startLevel(0); G.state = 'play';
-    showDialog([...STORY.prologue.map((l) => ({ who: l[0], text: l[1] })), { who: '', text: cls.intro }]);
+    startLevel(0); G.state = 'cine';
+    Cine.start(cls, () => { G.state = 'play'; Music.play('lvl1'); });
   }, { out: 750, hold: 300, inn: 1000 });
 };
 $('#btnRevive').onclick = () => { $('#dead').classList.add('hidden'); P.inv = 1.5; startLevel(G.level); say('Ти воскрес біля вогнища.'); };
@@ -1061,9 +1062,9 @@ function menuRidge(base, amp, seed, col, px, step = 4) {
   }
 }
 function menuRoof(R, x, w, top, c) { for (let r = 0; r < w; r++) R(x + r * 0.5, top + (r + 1) * 1.4, w - r, 1.5, c); }
-function menuCastle(cx, gy, u, t, fl) {
+function menuCastle(cx, gy, u, t, fl, pal) {
   const R = (x, top, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(cx + x * u), Math.round(gy - top * u), Math.max(1, Math.round(w * u)), Math.max(1, Math.round(h * u))); };
-  const body = fl > 0 ? '#1a1630' : '#0b0610', edge = fl > 0 ? '#6a6a9a' : '#241632';
+  const body = pal ? pal.body : fl > 0 ? '#1a1630' : '#0b0610', edge = pal ? pal.edge : fl > 0 ? '#6a6a9a' : '#241632';
   R(-8, 16, 16, 16, body); for (let i = 0; i < 8; i++) R(-8 + i * 2, 17.3, 1, 1.4, body);
   R(-14, 26, 6, 26, body); menuRoof(R, -14, 6, 26, body);
   R(8, 34, 6, 34, body); menuRoof(R, 8, 6, 34, body);
@@ -1174,6 +1175,7 @@ let last = performance.now(), clock = 0;
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now; clock += dt;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.imageSmoothingEnabled = false;
+  if (G.state === 'cine') { Cine.frame(dt); Input.endFrame(); requestAnimationFrame(frame); return; }
   if (G.state === 'menu' || !map) drawMenuBg(clock);
   else {
     if (G.state === 'play') update(dt);
