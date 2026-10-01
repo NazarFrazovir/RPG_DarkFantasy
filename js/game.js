@@ -14,7 +14,6 @@ addEventListener('resize', resize); resize();
 initSprites(); Music.play('menu');
 const G = { state: 'menu', cls: null, level: 0, time: 0, kills: 0, deaths: 0, shake: 0, titleT: 0, pendingPerks: 0, portalOpen: false, seen: {}, msg: '', msgT: 0, boss: null };
 let P, map, enemies, projs, parts, pickups, texts, allies, props, effects, corpses = [], inter, explored, flow, flowT, cam = { x: 0, y: 0 };
-const embers = Array.from({ length: 60 }, () => ({ x: Math.random(), y: Math.random(), s: rand(0.02, 0.08), r: rand(1, 3) }));
 
 // ---------- Карта ----------
 const solid = (tx, ty) => tx < 0 || ty < 0 || tx >= map.w || ty >= map.h || map.t[ty * map.w + tx] === 1;
@@ -631,6 +630,25 @@ function buildClassCards() {
   });
 }
 $('#btnNew').onclick = () => { Sfx.init(); Sfx.play('click'); $('#menu').classList.add('hidden'); $('#classes').classList.remove('hidden'); buildClassCards(); };
+// --- головне меню: керування, звук, клавіатура ---
+const menuBtns = () => [...document.querySelectorAll('#menu .mbtn')];
+let menuSel = 0;
+function menuSelect(i) { const b = menuBtns(); menuSel = (i + b.length) % b.length; b.forEach((x, k) => x.classList.toggle('sel', k === menuSel)); }
+function syncSound() { $('#btnSound').textContent = 'Звук: ' + (Sfx.muted ? 'вимк.' : 'увімк.'); }
+menuBtns().forEach((b, i) => b.addEventListener('mouseenter', () => { menuSelect(i); Sfx.tone(880, 0.05, 'square', 0.025); }));
+$('#btnHow').onclick = () => { Sfx.play('click'); $('#menu').classList.add('hidden'); $('#howto').classList.remove('hidden'); };
+$('#btnBack').onclick = () => { Sfx.play('click'); $('#howto').classList.add('hidden'); $('#menu').classList.remove('hidden'); };
+$('#btnSound').onclick = () => { Sfx.init(); Sfx.toggle(); syncSound(); Sfx.play('click'); };
+const firstGesture = () => { Sfx.init(); $('#audioHint').classList.add('hidden'); };
+addEventListener('pointerdown', firstGesture, { once: true }); addEventListener('keydown', firstGesture, { once: true });
+addEventListener('keydown', (e) => {
+  if (!$('#howto').classList.contains('hidden')) { if (e.code === 'Escape' || e.code === 'Enter') $('#btnBack').click(); return; }
+  if ($('#menu').classList.contains('hidden') || G.state !== 'menu') return;
+  if (e.code === 'ArrowDown' || e.code === 'KeyS') { menuSelect(menuSel + 1); e.preventDefault(); }
+  else if (e.code === 'ArrowUp' || e.code === 'KeyW') { menuSelect(menuSel - 1); e.preventDefault(); }
+  else if (e.code === 'Enter' || e.code === 'Space') { menuBtns()[menuSel].click(); e.preventDefault(); }
+});
+menuSelect(0);
 $('#btnStart').onclick = () => {
   if (!selClass) return; Sfx.play('click'); $('#classes').classList.add('hidden');
   createPlayer(selClass); Object.assign(G, { time: 0, kills: 0, deaths: 0, seen: {}, pendingPerks: 0 });
@@ -655,7 +673,7 @@ function toggleFs() {
 document.querySelectorAll('.fsBtn').forEach((b) => (b.onclick = () => { toggleFs(); b.blur(); }));
 addEventListener('keydown', (e) => {
   if (e.code === 'KeyG') toggleFs();
-  if (e.code === 'KeyM') Sfx.toggle();
+  if (e.code === 'KeyM') { Sfx.toggle(); syncSound(); }
   if (e.code === 'Escape' && !e.repeat) {
     if (G.state === 'pause') $('#btnResume').click();
     else if (G.state === 'play') { G.state = 'pause'; $('#pause').classList.remove('hidden'); }
@@ -988,10 +1006,101 @@ function drawHUD(t, sx, sy) {
   ctx.restore();
 }
 
+// ---------- Фон головного меню: піксельна сцена ----------
+const MENU = {
+  stars: Array.from({ length: 120 }, () => ({ x: Math.random(), y: Math.random() * 0.5, s: Math.random() < 0.12 ? 3 : 2, p: Math.random() * 6 })),
+  emb: Array.from({ length: 90 }, () => ({ p: Math.random(), v: rand(0.1, 0.28), dx: rand(-1, 1), r: Math.random() < 0.3 ? 4 : 2, c: Math.random() })),
+  cr: Array.from({ length: 30 }, () => ({ p: Math.random(), v: rand(0.12, 0.3), dx: rand(-1, 1) })),
+  trees: [0.1, 0.27, 0.92].map((x, i) => ({ x, h: [15, 10, 13][i], s: i % 2 ? 1 : -1 })),
+  flashT: 0, nextFlash: 4, lt: 0,
+};
+function menuRidge(base, amp, seed, col, px, step = 4) {
+  ctx.fillStyle = col;
+  for (let x = -8; x < W + 8; x += step) {
+    const h = base + amp * (Math.sin((x + px) * 0.004 + seed) + 0.55 * Math.sin((x + px) * 0.011 + seed * 2) + 0.25 * Math.sin((x + px) * 0.029 + seed * 3));
+    ctx.fillRect(x, Math.round(h), step, H - h + 2);
+  }
+}
+function menuRoof(R, x, w, top, c) { for (let r = 0; r < w; r++) R(x + r * 0.5, top + (r + 1) * 1.4, w - r, 1.5, c); }
+function menuCastle(cx, gy, u, t, fl) {
+  const R = (x, top, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(cx + x * u), Math.round(gy - top * u), Math.max(1, Math.round(w * u)), Math.max(1, Math.round(h * u))); };
+  const body = fl > 0 ? '#1a1630' : '#0b0610', edge = fl > 0 ? '#6a6a9a' : '#241632';
+  R(-8, 16, 16, 16, body); for (let i = 0; i < 8; i++) R(-8 + i * 2, 17.3, 1, 1.4, body);
+  R(-14, 26, 6, 26, body); menuRoof(R, -14, 6, 26, body);
+  R(8, 34, 6, 34, body); menuRoof(R, 8, 6, 34, body);
+  R(-2.5, 38, 5, 38, body); menuRoof(R, -2.5, 5, 38, body);
+  R(-24, 9, 9, 9, body); R(-24, 11, 2, 2, body); R(-20, 12, 2, 3, body); R(-17, 10, 2, 1, body); R(14, 12, 8, 12, body); R(20, 15, 2, 3, body);
+  [[-14, 26, 26], [-8, 16, 16], [-2.5, 38, 38], [8, 34, 34], [-24, 9, 9]].forEach(([x, top, h]) => R(x, top, 0.35, h, edge));
+  [[-5.5, 12], [3.5, 12], [-12, 21], [10.5, 28], [-1, 32], [-1, 24]].forEach(([x, y], i) => {
+    const f = 0.65 + Math.sin(t * 5 + i * 2.1) * 0.2 + (Math.sin(t * 13 + i) > 0.9 ? -0.3 : 0);
+    R(x, y, 1, 1.7, `rgba(255,${150 + i * 8},50,${f})`); R(x - 0.2, y + 0.2, 1.4, 2.1, `rgba(255,140,40,${f * 0.18})`);
+  });
+}
+function menuTree(x, gy, h, s, u, col) {
+  ctx.fillStyle = col; const tw = Math.max(2, Math.round(u * 0.8)); ctx.fillRect(Math.round(x), gy - h * u, tw, h * u + 2);
+  [[0.9, 3, 1], [0.7, 4, -1], [0.5, 3, 1], [0.35, 4, -1]].forEach(([f, n, d]) => {
+    const dir = d * s; for (let i = 0; i < n * 2; i++) ctx.fillRect(Math.round(x + dir * i * u * 0.55), Math.round(gy - h * u * f - i * u * 0.4), Math.max(2, Math.round(u * 0.6)), Math.max(2, Math.round(u * 0.6)));
+    for (let k = 0; k < 2; k++) ctx.fillRect(Math.round(x + dir * (n * 2 - 2 + k * 2) * u * 0.55), Math.round(gy - h * u * f - (n * 2 - 3 - k * 2) * u * 0.4 - u), Math.max(2, Math.round(u * 0.5)), Math.max(2, Math.round(u * 0.5)));
+  });
+}
 function drawMenuBg(t) {
-  ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.fillStyle = '#07050a'; ctx.fillRect(0, 0, W, H);
-  const g = ctx.createRadialGradient(W / 2, H * 1.05, 20, W / 2, H * 1.05, H * 0.9); g.addColorStop(0, 'rgba(200,70,20,.45)'); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  embers.forEach((e) => { e.y -= e.s * 0.01; e.x += Math.sin(t + e.r * 5) * 0.0004; if (e.y < 0) { e.y = 1; e.x = Math.random(); } ctx.fillStyle = `rgba(255,${120 + e.r * 30},40,${0.3 + e.r / 6})`; ctx.fillRect(e.x * W, e.y * H, e.r, e.r); });
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.imageSmoothingEnabled = false;
+  const dt = Math.min(0.05, t - MENU.lt); MENU.lt = t;
+  const mx = clamp(Input.mouse.x / W - 0.5, -0.5, 0.5), unit = Math.max(4, Math.round(H / 90));
+  if (t > MENU.nextFlash) { MENU.flashT = 0.45; MENU.nextFlash = t + rand(9, 16); Sfx.noise(1.4, 0.18, 140); }
+  MENU.flashT -= dt; const fl = MENU.flashT > 0 && Math.sin(MENU.flashT * 38) > -0.2 ? MENU.flashT / 0.45 : 0;
+  // небо
+  const sk = ctx.createLinearGradient(0, 0, 0, H * 0.8); sk.addColorStop(0, '#04020a'); sk.addColorStop(0.5, '#160a1e'); sk.addColorStop(0.86, '#3c1216'); sk.addColorStop(1, '#5a2012');
+  ctx.fillStyle = sk; ctx.fillRect(0, 0, W, H);
+  if (fl > 0) { ctx.fillStyle = `rgba(190,180,255,${fl * 0.34})`; ctx.fillRect(0, 0, W, H * 0.85); }
+  MENU.stars.forEach((s) => { ctx.fillStyle = `rgba(255,240,220,${0.25 + 0.45 * (0.5 + 0.5 * Math.sin(t * 1.6 + s.p))})`; ctx.fillRect(Math.round(s.x * W - mx * 8), Math.round(s.y * H), s.s, s.s); });
+  // місяць
+  const mr = Math.max(26, Math.round(H * 0.075 / 4) * 4), mcx = W * 0.17 - mx * 14, mcy = H * 0.22;
+  const mg = ctx.createRadialGradient(mcx, mcy, mr * 0.8, mcx, mcy, mr * 4); mg.addColorStop(0, 'rgba(200,190,255,.28)'); mg.addColorStop(1, 'rgba(200,190,255,0)'); ctx.fillStyle = mg; ctx.fillRect(mcx - mr * 4, mcy - mr * 4, mr * 8, mr * 8);
+  pxc(mcx, mcy, mr, '#e6e0d0', 4); pxc(mcx + mr * 0.3, mcy - mr * 0.2, mr * 0.28, '#c8c0b0', 4); pxc(mcx - mr * 0.35, mcy + mr * 0.3, mr * 0.2, '#c8c0b0', 4); pxc(mcx - mr * 0.2, mcy - mr * 0.45, mr * 0.14, '#d0c8b8', 4);
+  // гори, замок, Корона
+  menuRidge(H * 0.6, H * 0.05, 1.3, '#120817', -mx * 18);
+  menuRidge(H * 0.69, H * 0.05, 4.1, '#0d0612', -mx * 34);
+  const cu = unit * 0.85, ccx = W * 0.82 - mx * 46, cgy = H * 0.77;
+  ctx.fillStyle = '#09040d'; ctx.fillRect(ccx - 30 * cu, cgy - 1, 60 * cu, H);
+  menuCastle(ccx, cgy, cu, t, fl);
+  const crx = ccx, cry = cgy - 49 * cu + Math.sin(t * 1.4) * cu * 0.7, pu = Math.max(2, Math.round(cu * 0.8));
+  const ag = ctx.createRadialGradient(crx, cry, 4, crx, cry, cu * 20); ag.addColorStop(0, `rgba(255,160,60,${0.5 + Math.sin(t * 3) * 0.1})`); ag.addColorStop(0.35, 'rgba(180,60,255,.22)'); ag.addColorStop(1, 'rgba(120,40,200,0)');
+  ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = ag; ctx.fillRect(crx - cu * 20, cry - cu * 20, cu * 40, cu * 40); ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = '#e0b040'; ctx.fillRect(crx - 5 * pu, cry, 10 * pu, 2 * pu); [-4, -2, 0, 2, 4].forEach((o, i) => ctx.fillRect(crx + (o - 0.5) * pu, cry - (i % 2 ? 2 : 4) * pu, pu, (i % 2 ? 2 : 4) * pu));
+  ctx.fillStyle = '#ffe08a'; ctx.fillRect(crx - 5 * pu, cry, 10 * pu, pu * 0.6); ctx.fillStyle = '#c03aff'; ctx.fillRect(crx - pu * 0.7, cry + pu * 0.3, pu * 1.4, pu * 1.4);
+  for (let i = 0; i < 5; i++) { const a = t * 1.3 + i * 1.256; ctx.fillStyle = i % 2 ? '#ff9a3a' : '#d080ff'; ctx.fillRect(Math.round(crx + Math.cos(a) * pu * 9), Math.round(cry + pu + Math.sin(a) * pu * 3), pu, pu); }
+  MENU.cr.forEach((p) => { const k = (t * p.v + p.p) % 1; ctx.fillStyle = `rgba(${p.dx > 0 ? '255,160,60' : '200,110,255'},${1 - k})`; ctx.fillRect(Math.round(crx + p.dx * k * pu * 9), Math.round(cry - k * pu * 14), 3, 3); });
+  // туман
+  [[0.66, 0.5, 0.07, 14], [0.78, 0.8, 0.09, 24], [0.9, 1.2, 0.1, 36]].forEach(([yy, sp, a, ph], li) => {
+    for (let i = 0; i < 6; i++) {
+      const x = ((i * W / 4 + t * 14 * sp * (li + 1) + ph * 40) % (W + 500)) - 250 - mx * (30 + li * 20), y = H * yy + Math.sin(t * 0.3 + i + li) * 6;
+      ctx.save(); ctx.translate(x, y); ctx.scale(4, 1); const fg = ctx.createRadialGradient(0, 0, 0, 0, 0, H * 0.16); fg.addColorStop(0, `rgba(150,130,170,${a})`); fg.addColorStop(1, 'rgba(150,130,170,0)'); ctx.fillStyle = fg; ctx.fillRect(-H * 0.16, -H * 0.16, H * 0.32, H * 0.32); ctx.restore();
+    }
+  });
+  // передній план: гора, дерева
+  menuRidge(H * 0.84, H * 0.012, 7.7, '#07030a', -mx * 60);
+  MENU.trees.forEach((tr) => menuTree(tr.x * W - mx * 70, H * 0.86, tr.h, tr.s, unit * 0.9, '#050208'));
+  ctx.fillStyle = '#050208'; ctx.fillRect(0, Math.round(H * 0.86), W, H);
+  for (let i = 0; i < 60; i++) { const h = hash2(i, 7); ctx.fillStyle = h > 0.5 ? '#0b0612' : '#0f0a16'; ctx.fillRect(Math.round(h * W), Math.round(H * 0.87 + hash2(i, 3) * H * 0.12), 6 + (i % 3) * 4, 2); }
+  // вогнище і герої
+  const fx = W / 2, fy = H * 0.945, sc = Math.max(3, Math.round(H / 180)), sp = clamp(W * 0.1, 64, 190);
+  ctx.save(); ctx.translate(fx, fy); ctx.scale(Math.max(2, Math.round(sc * 0.8)), Math.max(2, Math.round(sc * 0.8))); drawProp({ type: 'bonfire', x: 0, y: 0 }, t); ctx.restore();
+  CLASSES.forEach((c, i) => {
+    const off = [-3, -1.5, 1.5, 3][i], hx = fx + off * sp, left = off < 0;
+    ctx.save(); ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(Math.round(hx - 12 * sc / 2), Math.round(fy - 2), 12 * sc, sc * 2); ctx.restore();
+    drawChar(c.id, hx, fy, { anim: 'idle', idx: Math.floor(t * 2.2 + i * 1.3) % 4, face: left ? 0.2 : Math.PI - 0.2, scale: sc });
+  });
+  const oh = Math.ceil(H * 0.36), oy = H - oh;
+  if (!MENU.o || MENU.o.width !== W || MENU.o.height !== oh) {
+    MENU.o = document.createElement('canvas'); MENU.o.width = W; MENU.o.height = oh; const g = MENU.o.getContext('2d');
+    const dg = g.createRadialGradient(fx, fy - 30 - oy, 40, fx, fy - 30 - oy, W * 0.42); dg.addColorStop(0, 'rgba(4,2,8,0)'); dg.addColorStop(1, 'rgba(4,2,8,.62)'); g.fillStyle = dg; g.fillRect(0, 0, W, oh);
+    g.globalCompositeOperation = 'destination-in'; const vg = g.createLinearGradient(0, 0, 0, oh * 0.5); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,1)'); g.fillStyle = vg; g.fillRect(0, 0, W, oh);
+  }
+  ctx.drawImage(MENU.o, 0, oy);
+  const fg2 = ctx.createRadialGradient(fx, fy - 20, 10, fx, fy - 20, W * 0.3 + Math.sin(t * 9) * 12); fg2.addColorStop(0, `rgba(255,140,50,${0.42 + Math.sin(t * 13) * 0.06})`); fg2.addColorStop(1, 'rgba(255,100,20,0)');
+  ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = fg2; ctx.fillRect(0, 0, W, H); ctx.globalCompositeOperation = 'source-over';
+  MENU.emb.forEach((e) => { const k = (t * e.v + e.p) % 1, x = fx + e.dx * k * W * 0.12 + Math.sin(t * 2 + e.p * 9) * 8 * k, y = fy - 30 - k * H * 0.5; ctx.fillStyle = `rgba(255,${110 + e.c * 120 | 0},40,${(1 - k) * 0.9})`; ctx.fillRect(Math.round(x), Math.round(y), e.r, e.r); });
 }
 
 let last = performance.now(), clock = 0;
