@@ -87,7 +87,7 @@ function createPlayer(c) {
     cls: c, x: 0, y: 0, r: 10, hp: c.hp, maxHp: c.hp, speed: c.speed, dmg: c.dmg, atkT: 0, dodgeT: 0, dodgeCdT: 0, dodgeDir: { x: 0, y: 1 },
     inv: 0, abT: 0, potions: 3, maxPotions: 3, potionHeal: 0.4, level: 1, xp: 0, xpNext: 40, crit: 0.05, lifesteal: 0, face: 0, flash: 0,
     dmgMul: 1, spdMul: 1, asMul: 1, cdr: 0, dodgeMul: 1, xpMul: 1, magnet: 110, vx: 0, vy: 0, animT: 0,
-    talents: [], points: 0, sub: null, asc: null, souls: 0, soulCount: 0, shield: 0, shieldT: 0, bShield: 0, bRegen: 6, autoT: 0, houndT: 0, parryT: 0, invisT: 0, wallT: 0, ghostT: 0, swings: 0, emberLeft: 0, arrows: 0,
+    bag: [], equip: {}, talents: [], points: 0, sub: null, asc: null, souls: 0, soulCount: 0, shield: 0, shieldT: 0, bShield: 0, bRegen: 6, autoT: 0, houndT: 0, parryT: 0, invisT: 0, wallT: 0, ghostT: 0, swings: 0, emberLeft: 0, arrows: 0,
   };
   recalcPlayer();
 }
@@ -208,7 +208,7 @@ function dmgFloat(x, y, text, color, big) { if (Settings.v.dmgNums) float(x, y, 
 function float(x, y, text, color = '#fff', big = false) { texts.push({ x, y, text, color, t: 0, big }); }
 // ---------- Збереження й чекпоінти ----------
 const SAVE_KEY = 'ashtorn.save.v1';
-const SAVE_FIELDS = ['level', 'xp', 'xpNext', 'potions', 'talents', 'points', 'sub', 'asc'];
+const SAVE_FIELDS = ['level', 'xp', 'xpNext', 'potions', 'talents', 'points', 'sub', 'asc', 'bag', 'equip'];
 function packExplored() {
   if (!explored || !explored.length) return [];
   const out = [explored[0]]; let run = 1;
@@ -243,7 +243,7 @@ function checkpoint() {
 }
 function loadGame(d) {
   const cls = CLASSES.find((c) => c.id === d.cls); createPlayer(cls);
-  SAVE_FIELDS.forEach((k) => { if (d.player[k] !== undefined) P[k] = d.player[k]; }); recalcPlayer(); P.hp = P.maxHp;
+  SAVE_FIELDS.forEach((k) => { if (d.player[k] !== undefined) P[k] = d.player[k]; }); lootInit(); recalcPlayer(); P.hp = P.maxHp;
   Object.assign(G, { time: d.stats.time || 0, kills: d.stats.kills || 0, deaths: d.stats.deaths || 0, seen: d.seen || {} });
   G.tut = d.tut || { ...newTut(), on: false, done: true }; startLevel(d.level, d.cp); G.state = 'play'; say('Прогрес завантажено');
 }
@@ -294,6 +294,7 @@ function killEnemy(e) {
   const orbs = Math.min(6, Math.ceil(e.xp / 8));
   for (let i = 0; i < orbs; i++) pickups.push({ type: 'soul', x: e.x, y: e.y, v: e.xp / orbs, vx: rand(-80, 80), vy: rand(-80, 80), t: 0 });
   if (!e.minion && Math.random() < (e.elite ? 1 : TUNE.potionDrop)) pickups.push({ type: 'potion', x: e.x, y: e.y, vx: 0, vy: 0, t: 0 });
+  dropLoot(e);
   if (e.elite) { G.portalOpen = true; say(LEVELS[G.level].portalMsg); Sfx.play('level'); G.shake = 10; }
   if (e.ai === 'boss') bossDefeated();
 }
@@ -580,6 +581,7 @@ function updatePickups(dt) {
     if (p.type === 'soul') {
       if (p.t > 0.4 && d < P.magnet) { const a = angTo(p, P), s = 220 + (P.magnet - d) * 4; p.x += Math.cos(a) * s * dt; p.y += Math.sin(a) * s * dt; }
       if (d < 14) { p.done = true; gainXp(p.v); Sfx.play('pickup'); }
+    } else if (p.type === 'item') { updateItemDrop(p, d);
     } else if (p.type === 'potion' && d < 18) {
       p.done = true; if (P.potions < P.maxPotions) P.potions++; Sfx.play('pickup'); float(P.x, P.y - 20, '+ зілля', '#55ff88');
     }
@@ -626,6 +628,7 @@ function update(dt) {
   if (near && Binds.pressed('interact')) near.act();
   if (G.state === 'play' && !G.noPerk && (needSub() || needAsc()) && G.askedTal !== P.level + ':' + (needSub() ? 's' : 'a') && !enemies.some((e) => e.aggro && !e.dead && !e.dummy && dist(e, P) < 480)) { G.askedTal = P.level + ':' + (needSub() ? 's' : 'a'); openTalents(); }
   if (G.state === 'play' && Binds.pressed('talents')) openTalents();
+  if (G.state === 'play' && Binds.pressed('inv')) openInv();
   if (G.tut) { G.tut.moved = (G.tut.moved || 0) + Math.hypot(P.x - px0g, P.y - py0g); tutUpdate(dt); }
 }
 
@@ -852,6 +855,7 @@ document.querySelectorAll('.fsBtn').forEach((b) => (b.onclick = () => { toggleFs
 addEventListener('keydown', (e) => {
   if (Binds.matches('fullscreen', e.code)) toggleFs();
   if (Binds.matches('mute', e.code)) { Sfx.toggle(); syncSound(); }
+  if (G.state === 'inv' && !e.repeat && (e.code === 'Escape' || Binds.matches('inv', e.code))) { closeInv(); e.escUsed = true; return; }
   if (G.state === 'talents' && !e.repeat && (e.code === 'Escape' || Binds.matches('talents', e.code))) { closeTalents(); e.escUsed = true; return; }
   if ((e.code === 'Escape' || e.code === 'KeyP') && !e.repeat && !e.escUsed) {
     if (G.state === 'pause') $('#btnResume').click();
@@ -1088,6 +1092,7 @@ function drawWorld(t) {
   pickups.forEach((p) => {
     const by = Math.round(p.y + Math.sin(p.t * 6) * 2), bx = Math.round(p.x);
     if (p.type === 'soul') { ctx.fillStyle = 'rgba(120,220,255,.25)'; ctx.fillRect(bx - 6, by - 6, 12, 12); ctx.fillStyle = '#7adcff'; ctx.fillRect(bx - 3, by - 3, 6, 6); ctx.fillStyle = '#eaffff'; ctx.fillRect(bx - 1, by - 1, 2, 2); }
+    else if (p.type === 'item') drawItemDrop(p, bx, by);
     else { ctx.fillStyle = '#ddd'; ctx.fillRect(bx - 2, by - 9, 4, 4); ctx.fillStyle = '#7a1a34'; ctx.fillRect(bx - 5, by - 5, 10, 10); ctx.fillStyle = '#d0304e'; ctx.fillRect(bx - 4, by - 4, 8, 6); ctx.fillStyle = '#ff90a0'; ctx.fillRect(bx - 3, by - 3, 2, 2); }
   });
   drawExt(t); corpses.forEach(drawCorpse);
@@ -1121,7 +1126,7 @@ function drawLighting(t, sx, sy) {
   props.forEach((p) => { if (p.type === 'torch') light(p.x, p.y, 150 + Math.sin(t * 12 + p.ph) * 8, 0.95); else if (p.type === 'bonfire') light(p.x, p.y, 210 + Math.sin(t * 10) * 10); else if (p.type === 'portal' && G.portalOpen) light(p.x, p.y, 130, 0.8); else if (p.type === 'scroll') light(p.x, p.y, 45, 0.7); });
   projs.forEach((p) => light(p.x, p.y, 55, 0.9));
   effects.forEach((e) => { if (e.k === 'ring') light(e.x, e.y, e.r * 1.2, 1 - e.t / e.life); });
-  pickups.forEach((p) => { if (p.type === 'soul') light(p.x, p.y, 40, 0.7); });
+  pickups.forEach((p) => { if (p.type === 'soul') light(p.x, p.y, 40, 0.7); else if (p.type === 'item' && p.item.rar >= 2) light(p.x, p.y, 50, 0.6); });
   enemies.forEach((e) => { if (e.ai === 'boss') light(e.x, e.y, 170, 0.8); else if (e.elite) light(e.x, e.y, 80, 0.8); });
   lctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);

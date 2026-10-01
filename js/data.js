@@ -43,7 +43,7 @@ const CLASSES = [
 
 // Параметри складності (їх підбирає tools/balance-sim.js)
 // (значення підібрані боєм-симулятором: node tools/balance-sim.js)
-const TUNE = { aggro: 360, alert: 220, shot: 235, eliteShot: 210, bossRest: 0.8, phase2: 0.55, summonEvery: 11, bossSummonN: 3, bossOrb: 0.24, lead: 1, bossAim: 1.7, potionDrop: 0.07 };
+const TUNE = { aggro: 360, alert: 220, shot: 235, eliteShot: 210, bossRest: 0.8, phase2: 0.55, summonEvery: 11, bossSummonN: 3, bossOrb: 0.24, lead: 1, bossAim: 1.7, potionDrop: 0.07, lootDrop: 0.07 };
 // Складність: множники здоров'я та шкоди ворогів (Settings.v.diff = 0/1/2)
 const DIFF = [{ name: 'Легко', hp: 0.75, dmg: 0.65 }, { name: 'Нормально', hp: 1, dmg: 1 }, { name: 'Складно', hp: 1.3, dmg: 1.3 }];
 
