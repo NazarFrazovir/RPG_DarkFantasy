@@ -64,12 +64,17 @@
       control(B, M); update(DT); Input.endFrame();
     }
     // portal transitions happen inside control(); record final
-    M.time = Math.round(G.time); M.kills = G.kills; M.plevel = P.level; M.maxHp = P.maxHp; M.sub = P.sub; M.asc = P.asc; M.talents = P.talents.length; M.potionsLeft = P.potions;
+    M.time = Math.round(G.time); M.kills = G.kills; M.plevel = P.level; M.maxHp = P.maxHp; M.gear = Object.values(P.equip).map((i) => i.rar).join(''); M.sub = P.sub; M.asc = P.asc; M.talents = P.talents.length; M.potionsLeft = P.potions;
     hurtPlayer = origHurt; return M;
 
+    function gearUp() {
+      const sc = (it) => it.rar * 10 + it.ilvl;
+      P.bag.slice().forEach((it) => { const cur = P.equip[it.slot]; if (!cur || sc(it) > sc(cur)) equipItem(it); });
+      while (P.bag.length > 8) discardItem(P.bag.slice().sort((a, b) => sc(a) - sc(b))[0]);
+    }
     function spendTalents() {
       const t = TALENTS[P.cls.id], order = [0, 1, 2].map((i) => t.branches[(i + seed) % 3]);
-      let guard = 0;
+      gearUp(); let guard = 0;
       while (P.points > 0 && guard++ < 20) { let bought = false; for (const b of order) { for (const n of b.nodes) { if (nodeState(n) === 'available') { buyTalent(n.id); bought = true; break; } } if (bought) break; } if (!bought) break; }
       if (needSub()) chooseSub(t.subs[seed % 2].id);
       if (needAsc()) chooseAsc(SUB_BY_ID[P.sub].ascs[(seed >> 1) % 2].id);
@@ -120,7 +125,7 @@
       } else {
         // --- дослідження: до найближчого ворога / зілля / порталу ---
         let goal = null;
-        const pk = pickups.filter((p) => p.type === 'potion' && dist(p, P) < 260).sort((a, b) => dist(a, P) - dist(b, P))[0];
+        const pk = pickups.filter((p) => (p.type === 'potion' || p.type === 'item') && dist(p, P) < 260).sort((a, b) => dist(a, P) - dist(b, P))[0];
         if (pk && P.potions < P.maxPotions) goal = { x: pk.x, y: pk.y };
         else if (live.length) { B.fieldT -= DT; const fP = bfs(Math.floor(P.x / TS), Math.floor(P.y / TS)); let best = 1e9; live.forEach((e) => { const v = fP[Math.floor(e.y / TS) * map.w + Math.floor(e.x / TS)]; if (v >= 0 && v < best) { best = v; goal = { x: e.x, y: e.y }; } }); if (!goal) goal = { x: near.x, y: near.y }; }
         else { const portal = props.find((p) => p.type === 'portal'); if (portal && G.portalOpen) { if (dist(portal, P) < 40) { nextLevel(); return; } goal = { x: portal.x, y: portal.y }; } else if (G.boss) goal = { x: G.boss.x, y: G.boss.y }; }
