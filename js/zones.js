@@ -4,7 +4,7 @@
 // map.t: 0 — прохідно, 1 — стіна (інтер'єр), 2 — перешкода (дерево, будинок, вода...). map.g — вид підлоги/землі.
 
 const ZONES = {};
-const GK = { GRASS: 0, DIRT: 1, COBBLE: 2, WHEAT: 3, WATER: 4, WOOD: 5, STONE: 6, CABBAGE: 7, PUMPKIN: 8, DGRASS: 9, RUG: 10, SAND: 11, WALL: 12, MARBLE: 13, DAIS: 14, CARPET: 15, STEP: 16 };
+const GK = { GRASS: 0, DIRT: 1, COBBLE: 2, WHEAT: 3, WATER: 4, WOOD: 5, STONE: 6, CABBAGE: 7, PUMPKIN: 8, DGRASS: 9, RUG: 10, SAND: 11, WALL: 12, MARBLE: 13, DAIS: 14, CARPET: 15, STEP: 16, SOOT: 17 };
 let zobjs = [], zlights = [], npcs = [], critters = [], chimneys = [], ZT = null;
 const zrand = (a, b) => a + Math.random() * (b - a);
 
@@ -45,6 +45,7 @@ function buildZoneTiles() {
     [GK.MARBLE]: (x, v) => { px(x, 0, 0, 16, 16, '#4a4858'); for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) { px(x, i * 8, j * 8, 8, 8, (i + j) % 2 ? '#54526a' : '#403e50'); px(x, i * 8, j * 8, 8, 1, 'rgba(255,255,255,.08)'); } px(x, 0, 7, 16, 1, '#2a2834'); px(x, 7, 0, 1, 16, '#2a2834'); noise(x, '#4a4858', 0.15, 0.25); if (v === 1) { px(x, 2, 3, 5, 1, 'rgba(255,255,255,.12)'); px(x, 3, 4, 3, 1, 'rgba(255,255,255,.08)'); } },
     [GK.DAIS]: (x, v) => { px(x, 0, 0, 16, 16, '#6e6c80'); for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) px(x, i * 8, j * 8, 8, 8, (i + j) % 2 ? '#7a788e' : '#66647a'); px(x, 0, 7, 16, 1, '#3a384a'); px(x, 7, 0, 1, 16, '#3a384a'); noise(x, '#6e6c80', 0.15, 0.25); px(x, 1, 1 + v, 4, 1, 'rgba(255,255,255,.18)'); },
     [GK.CARPET]: (x, v) => { px(x, 0, 0, 16, 16, '#7a1e2c'); noise(x, '#7a1e2c', 0.2, 0.35); px(x, 0, 0, 1, 16, '#2a0a10'); px(x, 15, 0, 1, 16, '#2a0a10'); px(x, 1, 0, 2, 16, '#c9a35a'); px(x, 13, 0, 2, 16, '#c9a35a'); px(x, 3, 0, 1, 16, '#5a1220'); px(x, 12, 0, 1, 16, '#5a1220'); const o = (v % 2) * 8; px(x, 7, 2 + o, 2, 4, '#c9a35a'); px(x, 6, 4 + o, 4, 1, '#c9a35a'); px(x, 7, 0 + o, 2, 1, '#e8c878'); },
+    [GK.SOOT]: (x, v) => { px(x, 0, 0, 16, 16, '#38332f'); noise(x, '#38332f', 0.35, 0.6); for (let i = 0; i < 4; i++) px(x, (i * 5 + v * 3) % 15, (i * 7 + v) % 15, 2, 1, '#1e1a18'); px(x, 0, 0, 16, 1, '#2a2624'); px(x, 3 + v, 7, 4, 1, '#52483f'); },
     [GK.STEP]: (x) => { px(x, 0, 0, 16, 16, '#8a8898'); px(x, 0, 0, 16, 4, '#a8a6b8'); px(x, 0, 4, 16, 1, '#c8c6d8'); px(x, 0, 11, 16, 5, '#3a384a'); px(x, 0, 11, 16, 1, '#5a586a'); noise(x, '#8a8898', 0.15, 0.25); },
     [GK.WATER]: (x) => { px(x, 0, 0, 16, 16, '#264a68'); noise(x, '#264a68', 0.25, 0.4); px(x, 2, 4, 5, 1, '#4a7a9a'); px(x, 9, 10, 5, 1, '#4a7a9a'); },
   };
