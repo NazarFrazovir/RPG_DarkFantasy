@@ -138,9 +138,9 @@ function startLevel(i, cp) {
     P.hp = P.maxHp; P.potions = P.maxPotions; float(P.x, P.y - 24, 'Жар відновлює сили', '#ffb347'); Sfx.play('potion');
     burst(bx, by, '#ffb347', 20, 90, 3); checkpoint();
   } });
-  if (i === 0) {
+  {
     const spot = [[0.5, 3.2], [0.5, -2.2], [-1.6, 2.4], [2.6, 2.4], [-2.4, -1.4], [3.6, -1.4], [0.5, 1.6]].map(([dx, dy]) => ({ x: (first.cx + dx) * TS, y: (first.cy + dy) * TS })).find((q) => !hitsWall(q.x, q.y, 18));
-    if (spot) { props.push({ type: 'exit', x: spot.x, y: spot.y, ph: 0 }); inter.push({ x: spot.x, y: spot.y, r: 46, label: 'Повернутись у селище', act: () => returnToVillage() }); }
+    if (spot) { props.push({ type: 'exit', x: spot.x, y: spot.y, ph: 0 }); inter.push({ x: spot.x, y: spot.y, r: 46, label: 'Повернутись у місто', act: () => returnToCity() }); }
   }
   if (cfg.npc) {
     const p = { x: (first.cx + 3.2) * TS, y: (first.cy + 0.5) * TS };
@@ -175,7 +175,7 @@ function startLevel(i, cp) {
     props.push(portal);
     inter.push({ x: portal.x, y: portal.y, r: 50, label: 'Увійти в портал', act: () => {
       if (!G.portalOpen) { float(P.x, P.y - 24, 'Портал замкнено — здолай вартового', '#cc6666'); return; }
-      if (G.fading) return; const next = G.level + 1; Sfx.play('level'); fade(() => { startLevel(next); introLevel(next); }, { out: 550, hold: 200, inn: 800 });
+      if (G.fading) return; const cleared = G.level; G.unlocked = Math.max(G.unlocked || 0, cleared + 1); Sfx.play('level'); fade(() => { G.cp = null; startZone('city', 'gate' + cleared); say(LEVELS[Math.min(cleared + 1, LEVELS.length - 1)].name + ' — брама відкрита'); toast('Нова брама відкрита!'); saveGame(); }, { out: 550, hold: 200, inn: 800 });
     }, dyn: () => (G.portalOpen ? 'Увійти в портал' : 'Портал замкнено') });
     // сувої лору
     cfg.lore.forEach((text, k) => {
@@ -206,9 +206,9 @@ function enterDungeon(i) {
   if (G.fading) return; Sfx.play('level');
   fade(() => { G.cp = null; startLevel(i); introLevel(i); }, { out: 650, hold: 250, inn: 900 });
 }
-function returnToVillage() {
-  if (G.fading) return; Sfx.play('click');
-  fade(() => { G.zcp = null; startZone('village', 'graveyard'); }, { out: 550, hold: 200, inn: 800 });
+function returnToCity() {
+  if (G.fading) return; Sfx.play('click'); const from = G.level;
+  fade(() => { G.zcp = null; G.cp = null; startZone('city', 'gate' + from); }, { out: 550, hold: 200, inn: 800 });
 }
 function introLevel(i) {
   const key = ['', 'level2', 'level3', 'level4', 'level5'][i];
@@ -243,7 +243,7 @@ function toast(t) { G.toast = t; G.toastT = 2.6; }
 function saveGame(show) {
   if (!P || G.level === undefined) return;
   const player = {}; SAVE_FIELDS.forEach((k) => { player[k] = P[k]; });
-  const data = { v: 2, t: Date.now(), cls: P.cls.id, level: G.level, zone: G.zone || null, zcp: G.zcp || null, cp: G.cp, seen: G.seen, stats: { time: G.time, kills: G.kills, deaths: G.deaths }, player, tut: G.tut ? { ...G.tut, okT: 0 } : null };
+  const data = { v: 2, t: Date.now(), cls: P.cls.id, level: G.level, zone: G.zone || null, zcp: G.zcp || null, unlocked: G.unlocked || 0, cp: G.cp, seen: G.seen, stats: { time: G.time, kills: G.kills, deaths: G.deaths }, player, tut: G.tut ? { ...G.tut, okT: 0 } : null };
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); if (show) toast('Прогрес збережено'); }
   catch (e) { if (show) toast('Не вдалося зберегти (сховище недоступне)'); }
 }
@@ -265,7 +265,7 @@ function loadGame(d) {
   const cls = CLASSES.find((c) => c.id === d.cls); createPlayer(cls);
   SAVE_FIELDS.forEach((k) => { if (d.player[k] !== undefined) P[k] = d.player[k]; }); lootInit(); recalcPlayer(); P.hp = P.maxHp;
   Object.assign(G, { time: d.stats.time || 0, kills: d.stats.kills || 0, deaths: d.stats.deaths || 0, seen: d.seen || {} });
-  G.tut = d.tut || { ...newTut(), on: false, done: true }; G.level = d.level; G.zcp = d.zcp || null; G.cp = d.cp;
+  G.tut = d.tut || { ...newTut(), on: false, done: true }; G.level = d.level; G.unlocked = d.unlocked !== undefined ? d.unlocked : d.level; G.zcp = d.zcp || null; G.cp = d.cp;
   if (d.zone && ZONES[d.zone]) { G.zone = null; startZone(d.zone, null, d.zcp && d.zcp.zone === d.zone ? { x: d.zcp.x, y: d.zcp.y } : null); }
   else startLevel(d.level, d.cp);
   G.state = 'play'; say('Прогрес завантажено');
@@ -852,7 +852,7 @@ $('#btnStart').onclick = () => {
   fade(() => {
     $('#classes').classList.add('hidden'); MENU.hlHero = MENU.hlCard = null; document.body.style.cursor = '';
     createPlayer(cls); Object.assign(G, { time: 0, kills: 0, deaths: 0, seen: {} }); G.tut = newTut(); G.askedTal = null;
-    G.level = 0; G.cp = null; G.zcp = null; G.zone = null; P.ash = 40; startZone('village', 'start'); G.state = 'cine';
+    G.level = 0; G.unlocked = 0; G.cp = null; G.zcp = null; G.zone = null; P.ash = 40; startZone('village', 'start'); G.state = 'cine';
     Cine.start(cls, () => { G.state = 'play'; Music.play('village'); G.zcp = { x: G.bonfire.x, y: G.bonfire.y + 38, zone: 'village' }; saveGame(); showDialog(STORY.village.map((l) => ({ who: l[0], text: l[1] }))); });
   }, { out: 750, hold: 300, inn: 1000 });
 };

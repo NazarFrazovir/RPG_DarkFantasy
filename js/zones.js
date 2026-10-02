@@ -4,7 +4,7 @@
 // map.t: 0 — прохідно, 1 — стіна (інтер'єр), 2 — перешкода (дерево, будинок, вода...). map.g — вид підлоги/землі.
 
 const ZONES = {};
-const GK = { GRASS: 0, DIRT: 1, COBBLE: 2, WHEAT: 3, WATER: 4, WOOD: 5, STONE: 6, CABBAGE: 7, PUMPKIN: 8, DGRASS: 9, RUG: 10, SAND: 11 };
+const GK = { GRASS: 0, DIRT: 1, COBBLE: 2, WHEAT: 3, WATER: 4, WOOD: 5, STONE: 6, CABBAGE: 7, PUMPKIN: 8, DGRASS: 9, RUG: 10, SAND: 11, WALL: 12 };
 let zobjs = [], zlights = [], npcs = [], critters = [], chimneys = [], ZT = null;
 const zrand = (a, b) => a + Math.random() * (b - a);
 
@@ -41,6 +41,7 @@ function buildZoneTiles() {
     [GK.WHEAT]: (x, v) => { px(x, 0, 0, 16, 16, '#5a4528'); noise(x, '#5a4528', 0.3, 0.5); for (let i = 0; i < 4; i++) { const a = i * 4 + 1; px(x, a, 2, 2, 14, '#8a6a34'); for (let k = 0; k < 4; k++) { const h = 3 + ((i * 3 + k * 5 + v * 2) % 4); px(x, a, 14 - k * 3 - h + 3, 2, h, k % 2 ? '#d8b44c' : '#e8c860'); } px(x, a, 1, 2, 2, '#f0d878'); } },
     [GK.CABBAGE]: (x, v) => { px(x, 0, 0, 16, 16, '#4e3c24'); noise(x, '#4e3c24', 0.3, 0.5); [[3, 3], [11, 3], [7, 10], [1, 11], [13, 11]].forEach(([a, b], i) => { if ((i + v) % 5 === 4) return; disc((c1, c2, c3, c4, col) => px(x, c1, c2, c3, c4, col), a + 1, b + 1, 3, '#2f6a2c'); px(x, a - 1, b - 1, 3, 2, '#5aa048'); px(x, a, b, 2, 2, '#8ac864'); }); },
     [GK.PUMPKIN]: (x, v) => { px(x, 0, 0, 16, 16, '#4e3c24'); noise(x, '#4e3c24', 0.3, 0.5); [[2, 3], [10, 2], [6, 9], [12, 10], [1, 11]].forEach(([a, b], i) => { if ((i + v) % 4 === 3) return; px(x, a, b, 5, 4, '#c8601c'); px(x, a, b, 5, 1, '#e8841c'); px(x, a + 1, b + 3, 4, 1, '#8a3c10'); px(x, a + 2, b - 1, 1, 1, '#3a6a24'); px(x, a + 2, b, 1, 4, '#a0480e'); }); },
+    [GK.WALL]: (x, v) => { px(x, 0, 0, 16, 16, '#5a5a66'); noise(x, '#5a5a66', 0.2, 0.4); for (let r = 0; r < 4; r++) { px(x, 0, r * 4 + 3, 16, 1, '#2a2a34'); const o = (r % 2 ? 4 : 0) + v * 2; px(x, (o + 3) % 16, r * 4, 1, 3, '#2a2a34'); px(x, (o + 11) % 16, r * 4, 1, 3, '#2a2a34'); px(x, (o + 5) % 16, r * 4, 3, 1, '#7a7a88'); } },
     [GK.WATER]: (x) => { px(x, 0, 0, 16, 16, '#264a68'); noise(x, '#264a68', 0.25, 0.4); px(x, 2, 4, 5, 1, '#4a7a9a'); px(x, 9, 10, 5, 1, '#4a7a9a'); },
   };
   Object.keys(kinds).forEach((k) => { T[k] = [0, 1, 2].map((v) => mk(kinds[k], v)); });
@@ -122,7 +123,7 @@ class ZB {
 const WALLS = { plaster: ['#c9b48a', '#a8946a', '#8a7650'], stone: ['#8a8a92', '#6a6a74', '#4a4a54'], log: ['#7a5632', '#5a3e22', '#3e2a16'], white: ['#e0d8c4', '#bcb29a', '#8c8268'] };
 const ROOFS = { red: ['#9a4030', '#7a2e22', '#b85a44'], slate: ['#5a5a6c', '#44445a', '#7a7a90'], thatch: ['#b09a58', '#8a7640', '#cfba74'], moss: ['#4a6a4a', '#365236', '#6a8a5a'], blue: ['#3e5a7a', '#2c4460', '#5a7a9a'] };
 function houseSprite(w, h, st) {
-  const key = ['house', w, h, st.wall, st.roof, st.door, st.sign || '', st.big ? 1 : 0].join('|');
+  const key = ['house', w, h, st.wall, st.roof, st.door, st.sign || '', st.blank ? 1 : 0].join('|');
   return spr(key, w * 16, h * 16, (R) => {
     const W2 = w * 16, H2 = h * 16, fh = 24, ry = H2 - fh, wl = WALLS[st.wall], rf = ROOFS[st.roof], dx = (st.door !== undefined ? st.door : Math.floor(w / 2)) * 16 + 4;
     // дах
@@ -142,6 +143,7 @@ function houseSprite(w, h, st) {
     if (st.wall === 'log') for (let y = ry + 5; y < H2; y += 5) { R(0, y, W2, 1, wl[2]); R(0, y + 1, W2, 1, wl[0]); }
     if (st.wall === 'plaster' || st.wall === 'white') { R(0, ry + 4, 3, fh - 4, '#3e2a18'); R(W2 - 3, ry + 4, 3, fh - 4, '#3e2a18'); R(0, ry + 4, W2, 2, '#3e2a18'); R(0, H2 - 4, W2, 4, '#555560'); }
     else R(0, H2 - 3, W2, 3, wl[2]);
+    if (st.blank) return;
     // двері
     R(dx - 1, H2 - 15, 10, 15, '#2a1a10'); R(dx, H2 - 14, 8, 14, '#5a3a20'); R(dx, H2 - 14, 8, 2, '#6a4a2a'); R(dx + 3, H2 - 14, 1, 14, '#3e2814'); R(dx + 6, H2 - 7, 1, 2, '#e0c060'); R(dx - 2, H2 - 1, 12, 1, '#6a6a74');
     // вікна
@@ -161,10 +163,11 @@ function houseSprite(w, h, st) {
   });
 }
 ZB.prototype.house = function (x, y, w, h, o = {}) {
-  const st = { wall: o.wall || 'plaster', roof: o.roof || 'red', door: o.door, sign: o.sign, chimney: o.chimney };
+  const st = { wall: o.wall || 'plaster', roof: o.roof || 'red', door: o.door, sign: o.sign, chimney: o.chimney, blank: o.blank };
   const spriteC = houseSprite(w, h, st), dtx = x + (o.door !== undefined ? o.door : Math.floor(w / 2));
   this.block(x, y, w, h, 2);
   this.obj({ x0: x * TS, y0: y * TS, x1: (x + w) * TS, y1: (y + h) * TS, y: (y + h) * TS, draw: () => blit(spriteC, x * TS, y * TS) });
+  if (o.blank) return { dtx, doorX: 0, doorY: 0 };
   const doorY = (y + h) * TS, doorX = (dtx + 0.5) * TS;
   for (let i = 0; i < w; i++) { if (Math.abs(i - (dtx - x)) < 1) continue; if (i % 2 === 0 && i > 0 && i < w - 1) this.light((x + i + 0.7) * TS, (y + h - 0.7) * TS, 62, 0.8); }
   this.light(doorX, doorY - 6, 56, 0.7);
