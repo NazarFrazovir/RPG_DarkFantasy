@@ -652,7 +652,7 @@ function update(dt) {
   let near = null, nd = 1e9;
   inter.forEach((it) => { if (it.gone) return; const d = Math.hypot(it.x - P.x, it.y - P.y); if (d < it.r && d < nd) { nd = d; near = it; } });
   G.near = near;
-  if (near && Binds.pressed('interact')) near.act();
+  if (G.actBlock) G.actBlock = false; else if (near && Binds.pressed('interact')) near.act();
   if (G.state === 'play' && !G.noPerk && (needSub() || needAsc()) && G.askedTal !== P.level + ':' + (needSub() ? 's' : 'a') && !enemies.some((e) => e.aggro && !e.dead && !e.dummy && dist(e, P) < 480)) { G.askedTal = P.level + ':' + (needSub() ? 's' : 'a'); openTalents(); }
   if (G.state === 'play' && Binds.pressed('talents')) openTalents();
   if (G.state === 'play' && Binds.pressed('inv')) openInv();
@@ -882,7 +882,8 @@ document.querySelectorAll('.fsBtn').forEach((b) => (b.onclick = () => { toggleFs
 addEventListener('keydown', (e) => {
   if (Binds.matches('fullscreen', e.code)) toggleFs();
   if (Binds.matches('mute', e.code)) { Sfx.toggle(); syncSound(); }
-  if (G.state === 'shop' && !e.repeat && (e.code === 'Escape' || Binds.matches('interact', e.code))) { closeShop(); e.escUsed = true; return; }
+  if (G.state === 'craft' && !e.repeat && (e.code === 'Escape' || Binds.matches('interact', e.code))) { closeCraft(); G.actBlock = true; e.escUsed = true; return; }
+  if (G.state === 'shop' && !e.repeat && (e.code === 'Escape' || Binds.matches('interact', e.code))) { closeShop(); G.actBlock = true; e.escUsed = true; return; }
   if (G.state === 'inv' && !e.repeat && (e.code === 'Escape' || Binds.matches('inv', e.code))) { closeInv(); e.escUsed = true; return; }
   if (G.state === 'talents' && !e.repeat && (e.code === 'Escape' || Binds.matches('talents', e.code))) { closeTalents(); e.escUsed = true; return; }
   if ((e.code === 'Escape' || e.code === 'KeyP') && !e.repeat && !e.escUsed) {

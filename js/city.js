@@ -94,6 +94,7 @@ function buildCity(B) {
   B.fill(GK.STONE, 5, 35, 29, 14);
   B.stall(7, 36, 3, { awning: '#8a2a2a', goods: 'weapon' }); B.stall(13, 36, 3, { awning: '#2a4a8a', goods: 'potion' }); B.stall(19, 36, 3, { awning: '#c8a038', goods: 'fruit' }); B.stall(25, 36, 3, { awning: '#6a3a8a', goods: 'cloth' });
   B.stall(9, 43, 3, { awning: '#2a6a5a', goods: 'weapon' }); B.stall(16, 43, 3, { awning: '#a03a2a', goods: 'cloth' }); B.stall(23, 43, 3, { awning: '#8a6a2a', goods: 'potion' });
+  B.workbench(29, 34, 'alch'); B.workbench(32, 34, 'tailor');
   B.barrel(5, 40); B.barrel(5, 41); B.crate(31, 40); B.crate(32, 40); B.crate(31, 46);
   // брами підземель (SE)
   B.fill(GK.STONE, 44, 39, 33, 17); B.fill(GK.WALL, 44, 33, 33, 6); B.block(44, 33, 33, 6);

@@ -79,6 +79,7 @@ ZB.prototype.campfire = function (tx, ty) {
   const st = spr('fstones', 24, 14, (R) => { for (let i = 0; i < 9; i++) { const a = (i / 9) * 6.283; R(12 + Math.round(Math.cos(a) * 9), 7 + Math.round(Math.sin(a) * 4), 4, 3, i % 2 ? '#6a6a76' : '#8a8a96'); } R(8, 6, 8, 3, '#3a2814'); R(9, 5, 6, 1, '#5a3e22'); });
   this.obj({ x0: x - 40, y0: y - 60, x1: x + 40, y1: y + 20, y: y + 8, draw: () => { blit(st, x - 24, y - 12); ctx.save(); ctx.beginPath(); ctx.rect(x - 24, y - 50, 48, 46); ctx.clip(); bigFire(x, y - 2, G.time, 0.8, x); ctx.restore(); glow(x, y - 10, 90, 0.2); if (Math.random() < 0.15) parts.push({ x: x + zrand(-6, 6), y: y - 14, vx: zrand(-6, 6), vy: -zrand(30, 60), life: 1.2, max: 1.2, size: 2, color: 'rgba(255,150,50,.8)' }); } });
   this.light(x, y - 6, 210, 1);
+  this.cookSpot(x + 34, y + 10);
 };
 ZB.prototype.cave = function (tx, ty) {
   const c = spr('cave', 64, 46, (R) => { disc(R, 32, 36, 30, '#3a3a44'); disc(R, 32, 34, 28, '#52525e'); R(0, 36, 64, 10, '#3a3a44'); R(10, 12, 44, 3, '#6a6a76'); disc(R, 32, 38, 18, '#06040a'); R(14, 38, 36, 8, '#06040a'); R(8, 26, 6, 3, '#7a7a86'); R(50, 22, 7, 3, '#7a7a86'); R(18, 10, 3, 2, '#9a9aa6'); [[28, 36], [36, 36]].forEach(([a, b]) => { R(a, b, 3, 2, '#ff3a2a'); R(a, b, 1, 1, '#ffd0a0'); }); R(2, 42, 12, 3, '#d8d0b8'); R(52, 43, 9, 2, '#d8d0b8'); R(4, 40, 3, 3, '#e8e0c8'); });

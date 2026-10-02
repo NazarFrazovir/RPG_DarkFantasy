@@ -165,6 +165,7 @@ function buildVillage(B) {
   B.stall(38, 27, 3, { awning: '#2a6a5a', goods: 'potion' }); B.stall(47, 27, 3, { awning: '#a03a2a', goods: 'weapon' });
   B.stall(38, 35, 3, { awning: '#c8a038', goods: 'fruit' }); B.stall(47, 35, 3, { awning: '#6a3a8a', goods: 'cloth' });
   B.bonfire = { x: 48, y: 33 };
+  B.workbench(35, 26, 'alch'); B.workbench(51, 36, 'tailor');
   B.barrel(36, 28); B.barrel(36, 29); B.crate(51, 28); B.crate(52, 28); B.barrel(52, 34);
   // --- ліхтарі
   [[38, 25], [50, 25], [38, 37], [50, 37], [42, 8], [46, 8], [42, 15], [46, 15], [42, 48], [46, 48], [20, 33], [34, 33], [66, 33], [76, 33], [24, 41], [58, 45], [62, 29], [8, 33]].forEach(([x, y]) => B.lamp(x, y));

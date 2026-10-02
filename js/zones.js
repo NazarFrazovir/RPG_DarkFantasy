@@ -348,6 +348,7 @@ function startZone(id, spawn, pos) {
   if (Z.interior) TILES = buildTiles(Z.theme.tiles, 12);
   enemies = []; projs = []; parts = []; pickups = []; texts = []; allies = []; effects = []; corpses = []; zones = []; traps = []; G.lethal = {}; G.boomDepth = 0; G.timers = []; G.stop = 0; G.pcorpse = null; P.castT = 0;
   G.boss = null; G.portalOpen = false; G.shake = 0; flow = null; flowT = 0; G.shop = null;
+  if (B.bonfire && B.cookSpot) B.cookSpot((B.bonfire.x + 0.5) * TS + 36, (B.bonfire.y + 0.5) * TS + 10);
   props = B.props.slice(); zobjs = B.objs; zlights = B.lights; chimneys = B.chim; npcs = B.npcs.map(makeNpc); critters = B.crit.map(makeCritter);
   inter = B.inter.slice(); npcs.forEach((n) => inter.push(n.it));
   const spot = (x, y, r) => { if (!hitsWall(x, y, r)) return { x, y }; for (let k = 1; k <= 6; k++) for (let a = 0; a < 12; a++) { const nx = x + Math.cos(a * 0.5236) * k * TS * 0.7, ny = y + Math.sin(a * 0.5236) * k * TS * 0.7; if (!hitsWall(nx, ny, r)) return { x: nx, y: ny }; } return { x, y }; };
