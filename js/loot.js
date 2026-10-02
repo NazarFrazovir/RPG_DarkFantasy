@@ -75,7 +75,7 @@ function applyItems(m) {
 }
 
 // ---------- Сумка й одягання ----------
-function lootInit() { if (!Array.isArray(P.bag)) P.bag = []; if (!P.equip || typeof P.equip !== 'object') P.equip = {}; P.bag = P.bag.filter(validItem); SLOTS.forEach((s) => { if (!validItem(P.equip[s.id])) delete P.equip[s.id]; }); }
+function lootInit() { stashInit(); if (!Array.isArray(P.bag)) P.bag = []; if (!P.equip || typeof P.equip !== 'object') P.equip = {}; P.bag = P.bag.filter(validItem); SLOTS.forEach((s) => { if (!validItem(P.equip[s.id])) delete P.equip[s.id]; }); }
 function equipItem(it) {
   const i = P.bag.indexOf(it); if (i < 0) return false;
   const old = P.equip[it.slot]; P.bag.splice(i, 1); if (old) P.bag.push(old); P.equip[it.slot] = it;
@@ -160,7 +160,10 @@ function renderInv() {
     d.onmouseenter = () => showTip(it, null); d.onmouseleave = () => showTip(null);
     eq.appendChild(d);
   });
-  for (let i = 0; i < BAG_SIZE; i++) {
+  const tabs = $('#invTabs'); tabs.innerHTML = '';
+  CATS.forEach((c) => { const b = document.createElement('button'); b.className = 'invTab' + (invTab === c.id ? ' on' : ''); const n = c.id === 'gear' ? P.bag.length : Object.keys(P.stash).filter((k) => ITEMS[k].cat === c.id).length; b.textContent = c.name + (n ? ' · ' + n : ''); b.onclick = () => { invTab = c.id; Sfx.play('click'); showTip(null); renderInv(); }; tabs.appendChild(b); });
+  if (invTab !== 'gear') renderStash(bag);
+  else for (let i = 0; i < BAG_SIZE; i++) {
     const it = P.bag[i], d = document.createElement('div'); d.className = 'cell' + (it ? ' full' : ''); if (it) d.style.setProperty('--rc', RARITY[it.rar].color);
     if (it) {
       d.appendChild(iconEl(it, 3));
@@ -172,7 +175,25 @@ function renderInv() {
   }
   const m = P.m, pct = (v) => Math.round(v * 100) + '%';
   $('#invStats').innerHTML = `<div>Здоров’я <b>${P.maxHp}</b></div><div>Шкода ×<b>${P.dmgMul.toFixed(2)}</b></div><div>Крит <b>${pct(P.crit)}</b> (×${(2 + m.critDmg).toFixed(1)})</div><div>Швидк. атаки ×<b>${(P.asMul).toFixed(2)}</b></div><div>Менше шкоди <b>${pct(1 - m.taken)}</b></div><div>Вампіризм <b>${(P.lifesteal * 100).toFixed(1)}%</b></div>`;
-  $('#invCount').textContent = `Сумка ${P.bag.length}/${BAG_SIZE}`;
+  $('#invCount').textContent = invTab === 'gear' ? `Сумка ${P.bag.length}/${BAG_SIZE}` : CATS.find((c) => c.id === invTab).name;
+}
+let invTab = 'gear';
+function stashTip(id) {
+  const it = ITEMS[id], c = CATS.find((x) => x.id === it.cat);
+  return `<div class="tipBox" style="border-color:#c9a35a"><b style="color:#e8dcc0">${it.name}</b><small>${c.name} · ціна ${it.val}</small><div>${it.desc}</div>${it.heal ? `<div class="base">Лікує ${Math.round(it.heal * 100)}% здоров’я</div><div class="aff">Клік — з’їсти</div>` : ''}${it.tool ? '<div class="aff">Інструмент (не витрачається)</div>' : ''}</div>`;
+}
+function renderStash(bag) {
+  const ids = Object.keys(P.stash).filter((k) => ITEMS[k].cat === invTab).sort();
+  const N = Math.max(12, Math.ceil(ids.length / 4) * 4);
+  for (let i = 0; i < N; i++) {
+    const id = ids[i], d = document.createElement('div'); d.className = 'cell' + (id ? ' full' : ''); if (id) d.style.setProperty('--rc', '#8a7a52');
+    if (id) {
+      d.appendChild(matIconEl(id, 3, P.stash[id]));
+      d.onclick = () => { if (ITEMS[id].cat === 'food') { eatItem(id); renderInv(); showTip(null); } };
+      d.onmouseenter = () => { $('#invTip').innerHTML = stashTip(id); }; d.onmouseleave = () => showTip(null);
+    }
+    bag.appendChild(d);
+  }
 }
 function showTip(it, cmp) {
   const t = $('#invTip');

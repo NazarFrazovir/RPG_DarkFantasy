@@ -87,7 +87,7 @@ function createPlayer(c) {
     cls: c, x: 0, y: 0, r: 10, hp: c.hp, maxHp: c.hp, speed: c.speed, dmg: c.dmg, atkT: 0, dodgeT: 0, dodgeCdT: 0, dodgeDir: { x: 0, y: 1 },
     inv: 0, abT: 0, potions: 3, maxPotions: 3, potionHeal: 0.4, level: 1, xp: 0, xpNext: 40, crit: 0.05, lifesteal: 0, face: 0, flash: 0,
     dmgMul: 1, spdMul: 1, asMul: 1, cdr: 0, dodgeMul: 1, xpMul: 1, magnet: 110, vx: 0, vy: 0, animT: 0,
-    ash: 0, bag: [], equip: {}, talents: [], points: 0, sub: null, asc: null, souls: 0, soulCount: 0, shield: 0, shieldT: 0, bShield: 0, bRegen: 6, autoT: 0, houndT: 0, parryT: 0, invisT: 0, wallT: 0, ghostT: 0, swings: 0, emberLeft: 0, arrows: 0,
+    ash: 0, bag: [], equip: {}, stash: {}, talents: [], points: 0, sub: null, asc: null, souls: 0, soulCount: 0, shield: 0, shieldT: 0, bShield: 0, bRegen: 6, autoT: 0, houndT: 0, parryT: 0, invisT: 0, wallT: 0, ghostT: 0, swings: 0, emberLeft: 0, arrows: 0,
   };
   recalcPlayer();
 }
@@ -97,7 +97,7 @@ function makeEnemy(type, x, y, elite, cfg) {
   const e = {
     type, name: d.name, x, y, r: d.r * (elite ? (cfg && cfg.elite.big ? 1.5 : 1.3) : 1), hp: d.hp * sh * (elite ? 3.4 : 1), speed: d.speed, dmg: d.dmg * s * (elite ? 1.3 : 1),
     range: d.range, wind: d.wind, cd: 0.5 + Math.random(), atkCd: d.cd, xp: d.xp * (elite ? 4 : 1) * ((cfg && cfg.xpMul) || 1), ai: d.ai, kbRes: d.kbRes || 0, elite: !!elite,
-    aggro: false, atk: null, strike: 0, flash: 0, stun: 0, burn: 0, kx: 0, ky: 0, face: Math.random() * 6.283, dust: 0, t: Math.random() * 5, dead: false, minion: false,
+    aggro: false, aggroR: d.aggroR, arrow: !!d.arrow, atk: null, strike: 0, flash: 0, stun: 0, burn: 0, kx: 0, ky: 0, face: Math.random() * 6.283, dust: 0, t: Math.random() * 5, dead: false, minion: false,
   };
   e.maxHp = e.hp;
   if (elite) e.name = cfg.elite.name;
@@ -227,7 +227,7 @@ function dmgFloat(x, y, text, color, big) { if (Settings.v.dmgNums) float(x, y, 
 function float(x, y, text, color = '#fff', big = false) { texts.push({ x, y, text, color, t: 0, big }); }
 // ---------- Збереження й чекпоінти ----------
 const SAVE_KEY = 'ashtorn.save.v1';
-const SAVE_FIELDS = ['level', 'xp', 'xpNext', 'potions', 'talents', 'points', 'sub', 'asc', 'bag', 'equip', 'ash'];
+const SAVE_FIELDS = ['level', 'xp', 'xpNext', 'potions', 'talents', 'points', 'sub', 'asc', 'bag', 'equip', 'ash', 'stash'];
 function packExplored() {
   if (!explored || !explored.length) return [];
   const out = [explored[0]]; let run = 1;
@@ -317,7 +317,7 @@ function killEnemy(e) {
   const orbs = Math.min(6, Math.ceil(e.xp / 8));
   for (let i = 0; i < orbs; i++) pickups.push({ type: 'soul', x: e.x, y: e.y, v: e.xp / orbs, vx: rand(-80, 80), vy: rand(-80, 80), t: 0 });
   if (!e.minion && Math.random() < (e.elite ? 1 : TUNE.potionDrop)) pickups.push({ type: 'potion', x: e.x, y: e.y, vx: 0, vy: 0, t: 0 });
-  dropLoot(e); dropCoins(e);
+  dropLoot(e); dropCoins(e); dropMats(e);
   if (e.elite) { G.portalOpen = true; say(LEVELS[G.level].portalMsg); Sfx.play('level'); G.shake = 10; }
   if (e.ai === 'boss') bossDefeated();
 }
@@ -449,7 +449,7 @@ function leadAng(e, spd) {
   return Math.atan2(P.y + (P.vy || 0) * t - e.y, P.x + (P.vx || 0) * t - e.x);
 }
 function enemyShoot(e, ang, spd = 190, dmg = edm(e), r = 6, color = '#b04aff') {
-  projs.push({ x: e.x, y: e.y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd, r, dmg, from: 'e', life: 4, color, hit: new Set(), t: 0, pierce: 0 });
+  projs.push({ x: e.x, y: e.y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd, r, dmg, from: 'e', life: 4, color, hit: new Set(), t: 0, pierce: 0, arrow: !!e.arrow });
 }
 
 function updateEnemy(e, dt) {
@@ -460,9 +460,10 @@ function updateEnemy(e, dt) {
   if (e.burn > 0) { e.burn -= dt; e.hp -= 6 * dt * (P.dmgMul); if (Math.random() < dt * 8) parts.push({ x: e.x + rand(-6, 6), y: e.y + rand(-6, 6), vx: 0, vy: -30, life: 0.5, max: 0.5, size: 3, color: '#ff8a2a' }); if (e.hp <= 0) { killEnemy(e); return; } }
   moveEntity(e, e.kx * dt, e.ky * dt); e.kx *= Math.pow(0.02, dt); e.ky *= Math.pow(0.02, dt);
   if (e.stun > 0) { e.stun -= dt; return; }
+  if (e.ai === 'flee') return updateFlee(e, dt);
   const tgt = pickTarget(e), d = dist(e, tgt);
   if (P.invisT > 0 && tgt === P && d > 80) return;
-  if (!e.aggro) { if (d < TUNE.aggro && los(e, P) && tgt === P) { e.aggro = true; if (TUNE.alert) enemies.forEach((o) => { if (!o.aggro && !o.dummy && !o.dead && dist(o, e) < TUNE.alert) o.aggro = true; }); } else return; }
+  if (!e.aggro) { if (d < (e.aggroR || TUNE.aggro) && los(e, P) && tgt === P) { e.aggro = true; if (TUNE.alert) enemies.forEach((o) => { if (!o.aggro && !o.dummy && !o.dead && dist(o, e) < TUNE.alert) o.aggro = true; }); } else return; }
   if (e.ai === 'boss') return updateBoss(e, dt, tgt, d);
   e.face = angTo(e, tgt);
   if (e.ai === 'melee') {
@@ -483,7 +484,7 @@ function updateEnemy(e, dt) {
     else if (d > 230 || !vis) steer(e, tgt, spd, dt);
     else { const a = e.face + Math.PI / 2; moveEntity(e, Math.cos(a) * spd * 0.5 * dt * (Math.sin(e.t) > 0 ? 1 : -1), Math.sin(a) * spd * 0.5 * dt * (Math.sin(e.t) > 0 ? 1 : -1)); }
     e.cd -= dt;
-    if (e.atk) { e.atk.t -= dt; if (e.atk.t <= 0) { const n = e.elite ? 5 : 1, sp = e.elite ? TUNE.eliteShot : TUNE.shot, base = tgt === P && TUNE.lead ? leadAng(e, sp) : e.face; for (let i = 0; i < n; i++) enemyShoot(e, base + (i - (n - 1) / 2) * 0.22, sp); e.atk = null; e.cd = e.atkCd; e.strike = 0.3; } }
+    if (e.atk) { e.atk.t -= dt; if (e.atk.t <= 0) { const n = e.elite ? 5 : 1, sp = e.elite ? TUNE.eliteShot : TUNE.shot, base = tgt === P && TUNE.lead ? leadAng(e, sp) : e.face; for (let i = 0; i < n; i++) enemyShoot(e, base + (i - (n - 1) / 2) * 0.22, sp, undefined, e.arrow ? 5 : undefined, e.arrow ? '#c8e090' : undefined); e.atk = null; e.cd = e.atkCd; e.strike = 0.3; } }
     else if (e.cd <= 0 && vis && d < 320) e.atk = { t: e.wind };
   }
 }
@@ -605,6 +606,7 @@ function updatePickups(dt) {
       if (p.t > 0.4 && d < P.magnet) { const a = angTo(p, P), s = 220 + (P.magnet - d) * 4; p.x += Math.cos(a) * s * dt; p.y += Math.sin(a) * s * dt; }
       if (d < 14) { p.done = true; gainXp(p.v); Sfx.play('pickup'); }
     } else if (p.type === 'coin') { updateCoin(p, d, dt);
+    } else if (p.type === 'mat') { updateMatDrop(p, d);
     } else if (p.type === 'item') { updateItemDrop(p, d);
     } else if (p.type === 'potion' && d < 18) {
       p.done = true; if (P.potions < P.maxPotions) P.potions++; Sfx.play('pickup'); float(P.x, P.y - 20, '+ зілля', '#55ff88');
@@ -631,7 +633,7 @@ function update(dt) {
   G.time += dt; G.titleT -= dt; G.msgT -= dt; G.toastT -= dt; G.ashFlash = Math.max(0, (G.ashFlash || 0) - dt);
   updatePlayer(dt); tickPlayerExt(dt); zonesTick(dt); P.vx = (P.x - px0g) / Math.max(dt, 1e-3); P.vy = (P.y - py0g) / Math.max(dt, 1e-3);
   if (G.zone) updateZone(dt);
-  else { flowT -= dt; if (flowT <= 0) { computeFlow(); flowT = 0.3; } }
+  if (!G.zone || enemies.length) { flowT -= dt; if (flowT <= 0) { computeFlow(); flowT = 0.3; } }
   enemies.forEach((e) => { if (!e.dead) updateEnemy(e, dt); });
   enemies = enemies.filter((e) => !e.dead);
   updateAllies(dt); updateProjs(dt); updatePickups(dt);
@@ -856,7 +858,7 @@ $('#btnStart').onclick = () => {
     Cine.start(cls, () => { G.state = 'play'; Music.play('village'); G.zcp = { x: G.bonfire.x, y: G.bonfire.y + 38, zone: 'village' }; saveGame(); showDialog(STORY.village.map((l) => ({ who: l[0], text: l[1] }))); });
   }, { out: 750, hold: 300, inn: 1000 });
 };
-$('#btnRevive').onclick = () => { $('#dead').classList.add('hidden'); startLevel(G.level, G.cp); P.inv = 1.5; say('Ти воскрес біля вогнища.'); };
+$('#btnRevive').onclick = () => { $('#dead').classList.add('hidden'); if (G.zone) { const z = G.zone; P.hp = P.maxHp; G.zone = null; startZone(z, 'revive'); P.hp = P.maxHp; P.inv = 1.5; say('Ти опритомнів біля табору.'); return; } startLevel(G.level, G.cp); P.inv = 1.5; say('Ти воскрес біля вогнища.'); };
 $('#btnAgain').onclick = () => { Music.play('menu'); $('#ending').classList.add('hidden'); $('#menu').classList.remove('hidden'); G.state = 'menu'; refreshContinue(); };
 function endGame(k) {
   const e = STORY.endings[k];
@@ -954,7 +956,7 @@ function drawSword(x, y, ang, scale, alpha = 1) {
 
 // ---------- Анімації персонажів ----------
 const ease = (x) => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
-const ENEMY_BASE = { skeleton: 2, ghoul: 2, cultist: 2, brute: 2, boss: 3 };
+const ENEMY_BASE = { skeleton: 2, ghoul: 2, cultist: 2, brute: 2, boss: 3, wolf: 2, bear: 2, deer: 2, rabbit: 2, elfArcher: 2, elfRogue: 2 };
 const enemyKey = (e) => (e.type === 'cultist' && e.elite ? 'cultistElite' : e.type);
 const enemyScale = (e) => Math.floor(ENEMY_BASE[e.type] * (e.elite ? 1.5 : 1) + 0.4);
 
@@ -1126,6 +1128,7 @@ function drawWorld(t) {
     if (p.type === 'soul') { ctx.fillStyle = 'rgba(120,220,255,.25)'; ctx.fillRect(bx - 6, by - 6, 12, 12); ctx.fillStyle = '#7adcff'; ctx.fillRect(bx - 3, by - 3, 6, 6); ctx.fillStyle = '#eaffff'; ctx.fillRect(bx - 1, by - 1, 2, 2); }
     else if (p.type === 'item') drawItemDrop(p, bx, by);
     else if (p.type === 'coin') drawCoin(p, bx, by);
+    else if (p.type === 'mat') drawMatDrop(p, bx, by);
     else { ctx.fillStyle = '#ddd'; ctx.fillRect(bx - 2, by - 9, 4, 4); ctx.fillStyle = '#7a1a34'; ctx.fillRect(bx - 5, by - 5, 10, 10); ctx.fillStyle = '#d0304e'; ctx.fillRect(bx - 4, by - 4, 8, 6); ctx.fillStyle = '#ff90a0'; ctx.fillRect(bx - 3, by - 3, 2, 2); }
   });
   drawExt(t); corpses.forEach(drawCorpse);

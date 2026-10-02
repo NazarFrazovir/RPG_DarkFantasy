@@ -53,12 +53,26 @@ function renderShop() {
       P.ash -= price; G.shop.items.splice(G.shop.items.indexOf(it), 1); Sfx.play('pickup'); shopTip(null); renderShop();
     }, P.ash < price));
   });
-  if (!G.shop.items.length) stock.innerHTML = '<div class="tipHint">Товар розпродано.</div>';
+  const goods = (G.shop.v && G.shop.v.goods) || [];
+  goods.forEach((g) => {
+    const it = ITEMS[g.id], own = it.cat === 'tool' && hasTool(g.id), d = document.createElement('div'); d.className = 'shopRow' + (own || P.ash < g.price ? ' off' : ''); d.style.setProperty('--rc', '#8a7a52');
+    d.appendChild(matIconEl(g.id, 2)); const t = document.createElement('div'); t.className = 'shopTxt'; t.innerHTML = `<b style="color:#e8dcc0">${it.name}</b><small>${own ? 'Вже є' : it.desc}</small>`; d.appendChild(t);
+    const pr = document.createElement('span'); pr.className = 'price'; pr.textContent = '◆ ' + g.price; d.appendChild(pr);
+    d.onclick = () => { if (own) { toast('Цей інструмент вже є'); return; } if (P.ash < g.price) { toast('Не вистачає Попелу'); Sfx.play('hit'); return; } P.ash -= g.price; addItem(g.id, 1); Sfx.play('pickup'); renderShop(); };
+    d.onmouseenter = () => { $('#shopTip').innerHTML = stashTip(g.id); }; d.onmouseleave = () => shopTip(null); stock.appendChild(d);
+  });
+  if (!G.shop.items.length && !goods.length) stock.innerHTML = '<div class="tipHint">Товар розпродано.</div>';
   const pp = potionPrice(), pb = $('#shopPotion'); pb.className = 'shopRow' + (P.ash < pp || P.potions >= P.maxPotions ? ' off' : '');
   pb.innerHTML = `<div class="shopTxt"><b style="color:#d0304e">Цілюще зілля</b><small>Є ${P.potions}/${P.maxPotions}</small></div><span class="price">◆ ${pp}</span>`;
   pb.onclick = () => { if (P.ash < pp) { toast('Не вистачає Попелу'); return; } if (P.potions >= P.maxPotions) { toast('Більше не вміщається'); return; } P.ash -= pp; P.potions++; Sfx.play('potion'); renderShop(); };
   P.bag.forEach((it) => bag.appendChild(shopCard(it, sellPrice(it), () => { P.ash += sellPrice(it); discardItem(it); Sfx.play('pickup'); shopTip(null); renderShop(); }, false)));
-  if (!P.bag.length) bag.innerHTML = '<div class="tipHint">Сумка порожня.</div>';
+  Object.keys(P.stash).sort().forEach((id) => {
+    const it = ITEMS[id], pr = Math.max(1, Math.floor(it.val * 0.5)), d = document.createElement('div'); d.className = 'shopRow'; d.style.setProperty('--rc', '#5a4a30');
+    d.appendChild(matIconEl(id, 2, P.stash[id])); const t = document.createElement('div'); t.className = 'shopTxt'; t.innerHTML = `<b style="color:#d8ccb0">${it.name}</b><small>${CATS.find((c) => c.id === it.cat).name} · клік — продати 1</small>`; d.appendChild(t);
+    const p2 = document.createElement('span'); p2.className = 'price'; p2.textContent = '◆ ' + pr; d.appendChild(p2);
+    d.onclick = () => { if (takeItem(id)) { P.ash += pr; Sfx.play('pickup'); renderShop(); } }; d.onmouseenter = () => { $('#shopTip').innerHTML = stashTip(id); }; d.onmouseleave = () => shopTip(null); bag.appendChild(d);
+  });
+  if (!P.bag.length && !Object.keys(P.stash).length) bag.innerHTML = '<div class="tipHint">Сумка порожня.</div>';
 }
 function openShop(v) {
   if (G.state !== 'play') return;

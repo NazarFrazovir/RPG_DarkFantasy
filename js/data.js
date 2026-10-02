@@ -53,6 +53,12 @@ const ENEMIES = {
   ghoul:    { name: 'Гуль', hp: 30, speed: 145, dmg: 9, r: 10, range: 20, wind: 0.25, cd: 0.7, xp: 8, ai: 'melee' },
   cultist:  { name: 'Культист Безодні', hp: 32, speed: 80, dmg: 12, r: 10, range: 0, wind: 0.5, cd: 1.35, xp: 12, ai: 'ranged' },
   brute:    { name: 'Плоть-Голем', hp: 150, speed: 70, dmg: 28, r: 20, range: 32, wind: 0.75, cd: 1.4, xp: 30, ai: 'melee', kbRes: 0.7 },
+  wolf:     { name: 'Сірий вовк', hp: 34, speed: 150, dmg: 11, r: 11, range: 20, wind: 0.22, cd: 0.8, xp: 11, ai: 'melee', aggroR: 300, drops: [['raw_meat', 0.7, [1, 2]], ['leather', 0.5], ['fang', 0.3], ['fur', 0.25]] },
+  bear:     { name: 'Бурий ведмідь', hp: 140, speed: 88, dmg: 26, r: 19, range: 30, wind: 0.7, cd: 1.5, xp: 30, ai: 'melee', kbRes: 0.6, aggroR: 230, drops: [['raw_meat', 1, [2, 3]], ['fur', 0.9, [1, 2]], ['claw', 0.6, [1, 2]], ['leather', 0.5]] },
+  deer:     { name: 'Олень', hp: 28, speed: 175, dmg: 0, r: 12, range: 0, wind: 0, cd: 9, xp: 4, ai: 'flee', drops: [['raw_meat', 1, [1, 2]], ['leather', 0.7], ['horn', 0.3]] },
+  rabbit:   { name: 'Заєць', hp: 8, speed: 190, dmg: 0, r: 8, range: 0, wind: 0, cd: 9, xp: 1, ai: 'flee', drops: [['raw_meat', 0.8], ['fur', 0.35]] },
+  elfArcher:{ name: 'Ельф-лучник', hp: 36, speed: 95, dmg: 13, r: 10, range: 0, wind: 0.45, cd: 1.1, xp: 14, ai: 'ranged', arrow: true, aggroR: 340, drops: [['arrows', 0.6, [2, 5]], ['feather', 0.5, [1, 3]], ['cloth', 0.3], ['iron_ingot', 0.1]] },
+  elfRogue: { name: 'Ельф-розбійник', hp: 45, speed: 135, dmg: 15, r: 10, range: 20, wind: 0.3, cd: 0.85, xp: 15, ai: 'melee', aggroR: 320, drops: [['cloth', 0.4], ['iron_ingot', 0.18], ['gold_ingot', 0.05], ['gem', 0.05], ['herb', 0.3]] },
   boss:     { name: 'Король Мальгорат', hp: 2600, speed: 78, dmg: 38, r: 28, xp: 400, ai: 'boss', kbRes: 1 },
 };
 

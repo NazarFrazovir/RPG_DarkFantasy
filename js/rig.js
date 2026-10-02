@@ -88,6 +88,7 @@ function drawRobe({ R }, p, v, idx, o) {
   }
   R(7 + lx, 10 + by, 10, 5 - p.sq, rb.b); R(7 + lx, 10 + by, 2, 5 - p.sq, rb.l); R(15 + lx, 10 + by, 2, 5 - p.sq, rb.d); R(7 + lx, 14 + by - p.sq, 10, 1, tr.b);
   if (front && o.chest) R(11 + lx, 11 + by, 2, 2, o.chest);
+  if (o.elf) { R(5 + lx, 6 + by, 3, 2, skin.b); R(4 + lx, 4 + by, 2, 3, skin.b); R(16 + lx, 6 + by, 3, 2, skin.b); R(18 + lx, 4 + by, 2, 3, skin.b); }
   [[4, p.armL], [17, p.armR]].forEach(([x, a]) => { R(x + lx, 11 + by + a, 3, 6, rb.b); R(x + lx, 11 + by + a, 1, 6, rb.l); R(x + lx, 16 + by + a, 3, 1, tr.b); R(x + lx, 17 + by + a, 3, 2, skin.b); });
   if (o.bone) { R(4 + lx, 9 + by, 4, 2, '#dcd4bc'); R(16 + lx, 9 + by, 4, 2, '#dcd4bc'); R(4 + lx, 10 + by, 4, 1, '#9a927c'); R(16 + lx, 10 + by, 4, 1, '#9a927c'); }
   if (o.quiver && !front) { R(15 + lx, 7 + by, 3, 9, '#6a4a2a'); R(15 + lx, 7 + by, 1, 9, '#8a6a3a'); R(15 + lx, 5 + by, 1, 3, '#ddd'); R(17 + lx, 6 + by, 1, 2, '#ddd'); R(16 + lx, 4 + by, 1, 4, '#b04040'); }
@@ -212,6 +213,7 @@ function initRig() {
   defChar('ghoul', 24, 2, drawGhoul);
   defChar('brute', 28, 2, drawBrute);
   defChar('boss', 28, 3, drawBoss);
+  if (typeof initFauna === 'function') initFauna();
 }
 // зелений відтінок для кістяних слуг некроманта
 function tint(col) {

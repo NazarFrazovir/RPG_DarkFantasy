@@ -98,7 +98,7 @@ class ZB {
   constructor(w, h, base, interior) {
     this.w = w; this.h = h; this.interior = interior;
     this.g = new Uint8Array(w * h).fill(base); this.t = new Uint8Array(w * h);
-    this.objs = []; this.lights = []; this.npcs = []; this.crit = []; this.inter = []; this.props = []; this.spawns = {}; this.chim = []; this.bonfire = null;
+    this.objs = []; this.lights = []; this.npcs = []; this.foes = []; this.noTree = new Uint8Array(w * h); this.crit = []; this.inter = []; this.props = []; this.spawns = {}; this.chim = []; this.bonfire = null;
   }
   fill(k, x, y, w, h) { for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) if (i >= 0 && j >= 0 && i < this.w && j < this.h) this.g[j * this.w + i] = k; }
   block(x, y, w = 1, h = 1, v = 2) { for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) if (i >= 0 && j >= 0 && i < this.w && j < this.h) this.t[j * this.w + i] = v; }
@@ -121,6 +121,8 @@ class ZB {
   spawn(name, tx, ty) { this.spawns[name] = { x: (tx + 0.5) * TS, y: (ty + 0.5) * TS }; }
   door(x, y, r, label, act) { this.inter.push({ x, y, r, label, act }); }
   npc(d) { this.npcs.push(d); }
+  foe(type, x, y, o = {}) { this.foes.push(Object.assign({ type, x, y }, o)); }
+  clear(cx, cy, rx, ry) { for (let j = Math.floor(cy - ry); j <= Math.ceil(cy + ry); j++) for (let i = Math.floor(cx - rx); i <= Math.ceil(cx + rx); i++) if (((i - cx) / rx) ** 2 + ((j - cy) / ry) ** 2 <= 1 && i >= 0 && j >= 0 && i < this.w && j < this.h) this.noTree[j * this.w + i] = 1; }
   animal(d) { this.crit.push(d); }
 }
 
@@ -348,6 +350,8 @@ function startZone(id, spawn, pos) {
   G.boss = null; G.portalOpen = false; G.shake = 0; flow = null; flowT = 0; G.shop = null;
   props = B.props.slice(); zobjs = B.objs; zlights = B.lights; chimneys = B.chim; npcs = B.npcs.map(makeNpc); critters = B.crit.map(makeCritter);
   inter = B.inter.slice(); npcs.forEach((n) => inter.push(n.it));
+  const spot = (x, y, r) => { if (!hitsWall(x, y, r)) return { x, y }; for (let k = 1; k <= 6; k++) for (let a = 0; a < 12; a++) { const nx = x + Math.cos(a * 0.5236) * k * TS * 0.7, ny = y + Math.sin(a * 0.5236) * k * TS * 0.7; if (!hitsWall(nx, ny, r)) return { x: nx, y: ny }; } return { x, y }; };
+  if (Z.cfg) enemies = B.foes.map((f) => { const p = spot((f.x + 0.5) * TS, (f.y + 0.5) * TS, 12), e = makeEnemy(f.type, p.x, p.y, !!f.elite, Z.cfg); if (f.name) e.name = f.name; e.face = Math.random() * 6.283; return e; });
   explored = new Uint8Array(Z.w * Z.h).fill(1);
   if (B.bonfire) { const bx = (B.bonfire.x + 0.5) * TS, by = (B.bonfire.y + 0.5) * TS; props.push({ type: 'bonfire', x: bx, y: by, ph: 0 }); G.bonfire = { x: bx, y: by };
     inter.push({ x: bx, y: by, r: 44, bonfire: true, label: 'Спочити біля вогнища (зберегти)', act: () => { P.hp = P.maxHp; P.potions = P.maxPotions; float(P.x, P.y - 24, 'Жар відновлює сили', '#ffb347'); Sfx.play('potion'); burst(bx, by, '#ffb347', 20, 90, 3); checkpoint(); } }); }
