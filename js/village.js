@@ -71,13 +71,13 @@ ZB.prototype.archGate = function (tx, ty) { // цвинтарна брама 3 �
 // ---------- Інтер'єри ----------
 function interior(id, name, w, h, o, fn) {
   ZONES[id] = {
-    name, w, h, base: GK.WOOD, interior: true, music: o.music || 'tavern', onEnter: o.onEnter,
-    theme: { ambient: o.ambient === undefined ? 0.3 : o.ambient, tint: o.tint || '26,12,4', tiles: { floor: ['#6b4a2c', '#6b4a2c', '#6b4a2c'], wall: '#190f08', face: '#4a3220', accent: '#8a5a2a' } },
+    name, w, h, base: o.base === undefined ? GK.WOOD : o.base, interior: true, music: o.music || 'tavern', onEnter: o.onEnter, fx: o.fx,
+    theme: { ambient: o.ambient === undefined ? 0.3 : o.ambient, tint: o.tint || '26,12,4', tiles: o.tiles || { floor: ['#6b4a2c', '#6b4a2c', '#6b4a2c'], wall: '#190f08', face: '#4a3220', accent: '#8a5a2a' } },
     build(B) {
       B.walls(0, 0, w, h); B.spawn('door', w >> 1, h - 2); B.spawn('default', w >> 1, h - 2);
       B.deco(w >> 1, h - 1, 1, 1, 'indoor', 18, 30, (R) => { R(0, 0, 18, 30, '#2a1a0e'); R(1, 2, 16, 28, '#5a3a20'); R(1, 2, 16, 3, '#6a4a2a'); R(8, 2, 1, 28, '#3e2814'); R(13, 16, 2, 3, '#e0c060'); R(0, 28, 18, 2, '#6a6a74'); }, { solid: false, ox: 7, oy: 10, sort: 40 });
       B.door((w / 2 + 0.5) * TS, (h - 1) * TS + 10, 44, 'Вийти надвір', () => zoneGo(o.exitZone || 'village', o.exit));
-      B.light((w / 2) * TS, (h / 2) * TS, Math.max(w, h) * TS * 0.7, 0.95);
+      if (o.centerLight !== false) B.light((w / 2) * TS, (h / 2) * TS, Math.max(w, h) * TS * 0.7, 0.95);
       fn(B);
     },
   };
@@ -250,21 +250,6 @@ interior('barn', 'Комора', 20, 12, { exit: 'barn', music: 'tavern', ambien
   for (let i = 0; i < 4; i++) B.animal({ kind: 'chicken', x: 4 + i * 3, y: 9, radius: 3 });
   B.npc({ id: 'tobin', name: 'Підпасок Мик', look: 'child1', x: 10, y: 7, scale: 1.55, mode: 'wander', radius: 2, speed: 24, talks: [L('Тут тепло і пахне сіном. Сплю на горищі — там нікого не шепоче.')] });
 });
-interior('chapel', 'Каплиця Свічок', 20, 16, { exit: 'chapel', music: 'tavern', ambient: 0.3, tint: '14,10,30' }, (B) => {
-  B.fill(GK.STONE, 1, 1, 18, 14); B.fill(GK.RUG, 8, 2, 4, 12);
-  B.altar(8, 1);
-  for (let r = 0; r < 4; r++) { B.pew(3, 6 + r * 2, 3); B.pew(14, 6 + r * 2, 3); }
-  B.deco(2, 2, 1, 1, 'candles', 14, 26, (R) => { R(5, 6, 4, 18, '#c9a35a'); R(3, 22, 8, 3, '#8a6a2a'); R(5, 3, 4, 4, '#f0ead8'); R(6, 0, 2, 4, '#ffd24a'); }, { light: [100, 0.9] });
-  B.deco(17, 2, 1, 1, 'candles2', 14, 26, (R) => { R(5, 6, 4, 18, '#c9a35a'); R(3, 22, 8, 3, '#8a6a2a'); R(5, 3, 4, 4, '#f0ead8'); R(6, 0, 2, 4, '#ffd24a'); }, { light: [100, 0.9] });
-  B.deco(15, 2, 1, 1, 'lectern', 16, 26, (R) => { R(6, 12, 4, 14, '#5a3e22'); R(1, 6, 14, 7, '#7a5632'); R(2, 4, 12, 4, '#e8e0c8'); R(3, 5, 10, 1, '#6a5a3a'); R(3, 7, 8, 1, '#6a5a3a'); }, { sort: 2 });
-  B.door(15.5 * TS, 3.4 * TS, 46, 'Книга Імен', () => showDialog([{ who: '', text: 'Велика книга з іменами. Сторінки розкриті, але чорнило тече — слова розпливаються й зникають, поки ти дивишся.' }, { who: '', text: 'На останній сторінці — свіжий запис дрібним почерком: «Не відпускай імена. Заради нього. Заради них усіх».' }]));
-  B.npc({ id: 'ivar', name: 'Отець Івар', look: 'priest', x: 9, y: 4, look0: 1.57, ir: 70, talks: [
-    L('Мир тобі, мандрівнику. У цій каплиці ми палимо свічки за тих, чиїх імен уже ніхто не пам’ятає.', 'Кожна свічка — людина. Дві згасли цього тижня. Забули, кого палили.'),
-    L('Благословення не зцілює ран, але зігріває душу. Візьми трохи світла з собою.'),
-    L('Кажуть, Холод їсть імена. Я кажу: Холод їсть тих, хто забув, що вони були.'),
-  ], onTalk: (n) => { P.hp = Math.min(P.maxHp, P.hp + P.maxHp * 0.25); float(P.x, P.y - 24, 'Благословення', '#fff2a0'); Sfx.play('potion'); } });
-});
-
 // Фрази для початку гри
 STORY.village = [
   ['', 'Ти приходиш до тями на околиці селища Попіл, біля брами Цвинтаря.'],

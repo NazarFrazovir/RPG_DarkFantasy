@@ -4,7 +4,7 @@
 // map.t: 0 — прохідно, 1 — стіна (інтер'єр), 2 — перешкода (дерево, будинок, вода...). map.g — вид підлоги/землі.
 
 const ZONES = {};
-const GK = { GRASS: 0, DIRT: 1, COBBLE: 2, WHEAT: 3, WATER: 4, WOOD: 5, STONE: 6, CABBAGE: 7, PUMPKIN: 8, DGRASS: 9, RUG: 10, SAND: 11, WALL: 12 };
+const GK = { GRASS: 0, DIRT: 1, COBBLE: 2, WHEAT: 3, WATER: 4, WOOD: 5, STONE: 6, CABBAGE: 7, PUMPKIN: 8, DGRASS: 9, RUG: 10, SAND: 11, WALL: 12, MARBLE: 13, DAIS: 14, CARPET: 15, STEP: 16 };
 let zobjs = [], zlights = [], npcs = [], critters = [], chimneys = [], ZT = null;
 const zrand = (a, b) => a + Math.random() * (b - a);
 
@@ -42,6 +42,10 @@ function buildZoneTiles() {
     [GK.CABBAGE]: (x, v) => { px(x, 0, 0, 16, 16, '#4e3c24'); noise(x, '#4e3c24', 0.3, 0.5); [[3, 3], [11, 3], [7, 10], [1, 11], [13, 11]].forEach(([a, b], i) => { if ((i + v) % 5 === 4) return; disc((c1, c2, c3, c4, col) => px(x, c1, c2, c3, c4, col), a + 1, b + 1, 3, '#2f6a2c'); px(x, a - 1, b - 1, 3, 2, '#5aa048'); px(x, a, b, 2, 2, '#8ac864'); }); },
     [GK.PUMPKIN]: (x, v) => { px(x, 0, 0, 16, 16, '#4e3c24'); noise(x, '#4e3c24', 0.3, 0.5); [[2, 3], [10, 2], [6, 9], [12, 10], [1, 11]].forEach(([a, b], i) => { if ((i + v) % 4 === 3) return; px(x, a, b, 5, 4, '#c8601c'); px(x, a, b, 5, 1, '#e8841c'); px(x, a + 1, b + 3, 4, 1, '#8a3c10'); px(x, a + 2, b - 1, 1, 1, '#3a6a24'); px(x, a + 2, b, 1, 4, '#a0480e'); }); },
     [GK.WALL]: (x, v) => { px(x, 0, 0, 16, 16, '#5a5a66'); noise(x, '#5a5a66', 0.2, 0.4); for (let r = 0; r < 4; r++) { px(x, 0, r * 4 + 3, 16, 1, '#2a2a34'); const o = (r % 2 ? 4 : 0) + v * 2; px(x, (o + 3) % 16, r * 4, 1, 3, '#2a2a34'); px(x, (o + 11) % 16, r * 4, 1, 3, '#2a2a34'); px(x, (o + 5) % 16, r * 4, 3, 1, '#7a7a88'); } },
+    [GK.MARBLE]: (x, v) => { px(x, 0, 0, 16, 16, '#4a4858'); for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) { px(x, i * 8, j * 8, 8, 8, (i + j) % 2 ? '#54526a' : '#403e50'); px(x, i * 8, j * 8, 8, 1, 'rgba(255,255,255,.08)'); } px(x, 0, 7, 16, 1, '#2a2834'); px(x, 7, 0, 1, 16, '#2a2834'); noise(x, '#4a4858', 0.15, 0.25); if (v === 1) { px(x, 2, 3, 5, 1, 'rgba(255,255,255,.12)'); px(x, 3, 4, 3, 1, 'rgba(255,255,255,.08)'); } },
+    [GK.DAIS]: (x, v) => { px(x, 0, 0, 16, 16, '#6e6c80'); for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) px(x, i * 8, j * 8, 8, 8, (i + j) % 2 ? '#7a788e' : '#66647a'); px(x, 0, 7, 16, 1, '#3a384a'); px(x, 7, 0, 1, 16, '#3a384a'); noise(x, '#6e6c80', 0.15, 0.25); px(x, 1, 1 + v, 4, 1, 'rgba(255,255,255,.18)'); },
+    [GK.CARPET]: (x, v) => { px(x, 0, 0, 16, 16, '#7a1e2c'); noise(x, '#7a1e2c', 0.2, 0.35); px(x, 0, 0, 1, 16, '#2a0a10'); px(x, 15, 0, 1, 16, '#2a0a10'); px(x, 1, 0, 2, 16, '#c9a35a'); px(x, 13, 0, 2, 16, '#c9a35a'); px(x, 3, 0, 1, 16, '#5a1220'); px(x, 12, 0, 1, 16, '#5a1220'); const o = (v % 2) * 8; px(x, 7, 2 + o, 2, 4, '#c9a35a'); px(x, 6, 4 + o, 4, 1, '#c9a35a'); px(x, 7, 0 + o, 2, 1, '#e8c878'); },
+    [GK.STEP]: (x) => { px(x, 0, 0, 16, 16, '#8a8898'); px(x, 0, 0, 16, 4, '#a8a6b8'); px(x, 0, 4, 16, 1, '#c8c6d8'); px(x, 0, 11, 16, 5, '#3a384a'); px(x, 0, 11, 16, 1, '#5a586a'); noise(x, '#8a8898', 0.15, 0.25); },
     [GK.WATER]: (x) => { px(x, 0, 0, 16, 16, '#264a68'); noise(x, '#264a68', 0.25, 0.4); px(x, 2, 4, 5, 1, '#4a7a9a'); px(x, 9, 10, 5, 1, '#4a7a9a'); },
   };
   Object.keys(kinds).forEach((k) => { T[k] = [0, 1, 2].map((v) => mk(kinds[k], v)); });
@@ -207,6 +211,7 @@ ZB.prototype.deco = function (tx, ty, w, h, key, cw, ch, fn, o = {}) {
   if (o.light) this.light(x + cw, y + ch, o.light[0], o.light[1]);
   return ob;
 };
+ZB.prototype.cust = function (x0, y0, x1, y1, sortY, draw) { return this.obj({ x0, y0, x1, y1, y: sortY, draw }); };
 ZB.prototype.bush = function (tx, ty) { this.deco(tx, ty, 1, 1, 'bush' + Math.floor(hash2(tx, ty) * 3), 16, 12, (R) => { disc(R, 8, 7, 6, '#26441e'); disc(R, 7, 6, 5, '#34602a'); R(5, 3, 3, 1, '#5a9248'); R(9, 5, 2, 1, '#5a9248'); }, { solid: false }); };
 ZB.prototype.rock = function (tx, ty) { this.deco(tx, ty, 1, 1, 'rock', 16, 12, (R) => { disc(R, 8, 7, 6, '#4a4a54'); disc(R, 7, 6, 5, '#6a6a76'); R(4, 3, 4, 1, '#9a9aa6'); R(10, 9, 3, 1, '#3a3a44'); }); };
 ZB.prototype.flowers = function (tx, ty, col) { this.deco(tx, ty, 1, 1, 'fl' + col, 16, 12, (R) => { for (let i = 0; i < 6; i++) { const a = 1 + ((i * 5) % 13), b = 2 + ((i * 7) % 8); R(a, b + 3, 1, 3, '#2a5a24'); R(a - 1, b, 3, 3, col); R(a, b + 1, 1, 1, '#fff2a0'); } }, { solid: false }); };
@@ -363,7 +368,7 @@ function zoneCam() {
   cam.y = mh <= H ? mh / 2 : Math.max(H / 2, Math.min(mh - H / 2, cam.y));
 }
 function updateZone(dt) {
-  updateNpcs(dt);
+  updateNpcs(dt); if (ZONES[G.zone].fx) ZONES[G.zone].fx(dt);
   chimneys.forEach((c) => { if (Math.random() < dt * 1.4) parts.push({ x: c.x + 6, y: c.y, vx: zrand(2, 12), vy: -zrand(14, 24), life: 2, max: 2, size: 6, color: 'rgba(190,190,200,.28)' }); });
   if (!map.interior && Math.random() < dt * 6) parts.push({ x: cam.x + zrand(-W / 2, W / 2), y: cam.y + zrand(-H / 2, H / 2), vx: zrand(-8, 8), vy: zrand(-10, 2), life: 3, max: 3, size: 2, color: 'rgba(255,230,120,.8)' });
 }
