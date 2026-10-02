@@ -5,7 +5,7 @@ const PRICE = [15, 50, 140, 380, 1000]; // за рідкістю при ilvl 0
 const SELL_RATE = 0.35;
 const itemPrice = (it) => Math.round(PRICE[it.rar] * ilvlMul(it.ilvl));
 const sellPrice = (it) => Math.max(1, Math.round(itemPrice(it) * SELL_RATE));
-const potionPrice = () => 45 + 12 * G.level;
+const potionPrice = () => Math.round((45 + 12 * G.level) * ((G.shop && G.shop.v && G.shop.v.potionOff) || 1));
 
 // ---------- Монети ----------
 function dropCoins(e) {
@@ -23,10 +23,11 @@ function drawCoin(p, bx, by) {
 }
 
 // ---------- Крамниця ----------
-function initShop() {
-  const lv = Math.min(4, G.level);
-  G.shop = { items: [] };
-  for (let i = 0; i < 5; i++) G.shop.items.push(genItem(lv, rollRarity([18, 40, 30, 10, 2]), SLOTS[i % SLOTS.length].id));
+const DEFAULT_VENDOR = { id: '_', name: 'Торговець Кост', slots: SLOTS.map((s) => s.id), rar: [18, 40, 30, 10, 2], count: 5, potions: true };
+function initShop(v) {
+  v = v || DEFAULT_VENDOR; const lv = Math.min(4, G.level), sh = { items: [], v };
+  for (let i = 0; i < (v.count || 5); i++) sh.items.push(genItem(lv, rollRarity(v.rar || DEFAULT_VENDOR.rar), v.slots[i % v.slots.length]));
+  return sh;
 }
 const shopEl = $('#shop');
 function shopCard(it, price, onClick, disabled) {
@@ -59,9 +60,10 @@ function renderShop() {
   P.bag.forEach((it) => bag.appendChild(shopCard(it, sellPrice(it), () => { P.ash += sellPrice(it); discardItem(it); Sfx.play('pickup'); shopTip(null); renderShop(); }, false)));
   if (!P.bag.length) bag.innerHTML = '<div class="tipHint">Сумка порожня.</div>';
 }
-function openShop() {
+function openShop(v) {
   if (G.state !== 'play') return;
-  if (!G.shop) initShop();
+  v = v || DEFAULT_VENDOR; if (!G.shops) G.shops = {}; if (!G.shops[v.id]) G.shops[v.id] = initShop(v); G.shop = G.shops[v.id];
+  $('#shop h2').textContent = v.name; $('#shopPotion').style.display = v.potions === false ? 'none' : '';
   G.state = 'shop'; renderShop(); shopTip(null); shopEl.classList.remove('hidden'); Sfx.play('click');
 }
 function closeShop() { shopEl.classList.add('hidden'); G.state = 'play'; saveGame(); }

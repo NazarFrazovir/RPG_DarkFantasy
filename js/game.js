@@ -16,7 +16,7 @@ const G = { state: 'menu', cls: null, level: 0, time: 0, kills: 0, deaths: 0, sh
 let P, map, enemies, projs, parts, pickups, texts, allies, props, effects, corpses = [], inter, explored, flow, flowT, cam = { x: 0, y: 0 };
 
 // ---------- Карта ----------
-const solid = (tx, ty) => tx < 0 || ty < 0 || tx >= map.w || ty >= map.h || map.t[ty * map.w + tx] === 1;
+const solid = (tx, ty) => tx < 0 || ty < 0 || tx >= map.w || ty >= map.h || map.t[ty * map.w + tx] !== 0;
 function hitsWall(x, y, r) {
   const x0 = Math.floor((x - r) / TS), x1 = Math.floor((x + r) / TS), y0 = Math.floor((y - r) / TS), y1 = Math.floor((y + r) / TS);
   for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) if (solid(tx, ty)) return true;
@@ -105,6 +105,7 @@ function makeEnemy(type, x, y, elite, cfg) {
 }
 
 function startLevel(i, cp) {
+  G.zone = null; zobjs = []; zlights = []; npcs = []; critters = []; chimneys = []; G.shops = {};
   G.level = i; const cfg = LEVELS[i], rng = mulberry32(cfg.seed);
   map = genMap(cfg, rng); TILES = buildTiles(cfg.theme, cfg.seed);
   Music.play(['lvl1', 'lvl2', 'lvl3', 'lvl4', 'boss'][i]); Music.target = 0; Music.phase2 = false;
@@ -137,6 +138,10 @@ function startLevel(i, cp) {
     P.hp = P.maxHp; P.potions = P.maxPotions; float(P.x, P.y - 24, 'Жар відновлює сили', '#ffb347'); Sfx.play('potion');
     burst(bx, by, '#ffb347', 20, 90, 3); checkpoint();
   } });
+  if (i === 0) {
+    const spot = [[0.5, 3.2], [0.5, -2.2], [-1.6, 2.4], [2.6, 2.4], [-2.4, -1.4], [3.6, -1.4], [0.5, 1.6]].map(([dx, dy]) => ({ x: (first.cx + dx) * TS, y: (first.cy + dy) * TS })).find((q) => !hitsWall(q.x, q.y, 18));
+    if (spot) { props.push({ type: 'exit', x: spot.x, y: spot.y, ph: 0 }); inter.push({ x: spot.x, y: spot.y, r: 46, label: 'Повернутись у селище', act: () => returnToVillage() }); }
+  }
   if (cfg.npc) {
     const p = { x: (first.cx + 3.2) * TS, y: (first.cy + 0.5) * TS };
     props.push({ type: 'npc', x: p.x, y: p.y, ph: 0 });
@@ -197,6 +202,14 @@ function startLevel(i, cp) {
   G.titleT = 3.5; G.state = 'play';
 }
 
+function enterDungeon(i) {
+  if (G.fading) return; Sfx.play('level');
+  fade(() => { G.cp = null; startLevel(i); introLevel(i); }, { out: 650, hold: 250, inn: 900 });
+}
+function returnToVillage() {
+  if (G.fading) return; Sfx.play('click');
+  fade(() => { G.zcp = null; startZone('village', 'graveyard'); }, { out: 550, hold: 200, inn: 800 });
+}
 function introLevel(i) {
   const key = ['', 'level2', 'level3', 'level4', 'level5'][i];
   if (key && !G.seen[i]) showDialog(STORY[key].map((l) => ({ who: l[0], text: l[1] })));
@@ -230,7 +243,7 @@ function toast(t) { G.toast = t; G.toastT = 2.6; }
 function saveGame(show) {
   if (!P || G.level === undefined) return;
   const player = {}; SAVE_FIELDS.forEach((k) => { player[k] = P[k]; });
-  const data = { v: 2, t: Date.now(), cls: P.cls.id, level: G.level, cp: G.cp, seen: G.seen, stats: { time: G.time, kills: G.kills, deaths: G.deaths }, player, tut: G.tut ? { ...G.tut, okT: 0 } : null };
+  const data = { v: 2, t: Date.now(), cls: P.cls.id, level: G.level, zone: G.zone || null, zcp: G.zcp || null, cp: G.cp, seen: G.seen, stats: { time: G.time, kills: G.kills, deaths: G.deaths }, player, tut: G.tut ? { ...G.tut, okT: 0 } : null };
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); if (show) toast('Прогрес збережено'); }
   catch (e) { if (show) toast('Не вдалося зберегти (сховище недоступне)'); }
 }
@@ -244,6 +257,7 @@ function readSave() {
 function deleteSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignore */ } }
 function checkpoint() {
   if (G.tut) G.tut.rested = true;
+  if (G.zone) { G.zcp = { x: G.bonfire.x, y: G.bonfire.y + 38, zone: G.zone }; saveGame(true); return; }
   G.cp = { level: G.level, dead: [...G.dead], lore: [...G.loreTaken], portal: G.portalOpen, x: G.bonfire.x, y: G.bonfire.y + 38, explored: packExplored() };
   saveGame(true);
 }
@@ -251,7 +265,10 @@ function loadGame(d) {
   const cls = CLASSES.find((c) => c.id === d.cls); createPlayer(cls);
   SAVE_FIELDS.forEach((k) => { if (d.player[k] !== undefined) P[k] = d.player[k]; }); lootInit(); recalcPlayer(); P.hp = P.maxHp;
   Object.assign(G, { time: d.stats.time || 0, kills: d.stats.kills || 0, deaths: d.stats.deaths || 0, seen: d.seen || {} });
-  G.tut = d.tut || { ...newTut(), on: false, done: true }; startLevel(d.level, d.cp); G.state = 'play'; say('Прогрес завантажено');
+  G.tut = d.tut || { ...newTut(), on: false, done: true }; G.level = d.level; G.zcp = d.zcp || null; G.cp = d.cp;
+  if (d.zone && ZONES[d.zone]) { G.zone = null; startZone(d.zone, null, d.zcp && d.zcp.zone === d.zone ? { x: d.zcp.x, y: d.zcp.y } : null); }
+  else startLevel(d.level, d.cp);
+  G.state = 'play'; say('Прогрес завантажено');
 }
 function later(sec, fn) { G.timers.push({ t: sec, fn }); }
 function say(m) { G.msg = m; G.msgT = 3.5; }
@@ -613,7 +630,8 @@ function update(dt) {
   const px0g = P.x, py0g = P.y;
   G.time += dt; G.titleT -= dt; G.msgT -= dt; G.toastT -= dt; G.ashFlash = Math.max(0, (G.ashFlash || 0) - dt);
   updatePlayer(dt); tickPlayerExt(dt); zonesTick(dt); P.vx = (P.x - px0g) / Math.max(dt, 1e-3); P.vy = (P.y - py0g) / Math.max(dt, 1e-3);
-  flowT -= dt; if (flowT <= 0) { computeFlow(); flowT = 0.3; }
+  if (G.zone) updateZone(dt);
+  else { flowT -= dt; if (flowT <= 0) { computeFlow(); flowT = 0.3; } }
   enemies.forEach((e) => { if (!e.dead) updateEnemy(e, dt); });
   enemies = enemies.filter((e) => !e.dead);
   updateAllies(dt); updateProjs(dt); updatePickups(dt);
@@ -621,7 +639,7 @@ function update(dt) {
   tickFx(dt);
   enemies.forEach((e) => { const px = e.px === undefined ? e.x : e.px, py = e.py === undefined ? e.y : e.py, d = Math.hypot(e.x - px, e.y - py); e.px = e.x; e.py = e.y; if (d > 0.4 && e.type !== 'cultist' && (e.dust -= dt) <= 0) { e.dust = 0.2; dust(e.x, e.y, e.ai === 'boss' || e.type === 'brute'); } });
   if (P.moving && P.dodgeT <= 0 && (P.dust = (P.dust || 0) - dt) <= 0) { P.dust = 0.18; dust(P.x, P.y, false); }
-  cam.x += (P.x - cam.x) * Math.min(1, dt * 8); cam.y += (P.y - cam.y) * Math.min(1, dt * 8);
+  cam.x += (P.x - cam.x) * Math.min(1, dt * 8); cam.y += (P.y - cam.y) * Math.min(1, dt * 8); if (G.zone) zoneCam();
 
   // босс: тригер
   if (G.boss && !G.boss.aggro && !G.boss.dead && dist(P, G.boss) < 340 && G.state === 'play') {
@@ -733,7 +751,7 @@ function syncSound() { $('#btnSound').textContent = 'Звук: ' + (Settings.v.m
 function refreshContinue() {
   const d = readSave(), b = $('#btnContinue');
   b.classList.toggle('hidden', !d);
-  if (d) { const c = CLASSES.find((x) => x.id === d.cls), t = Math.floor((d.stats.time || 0) / 60); $('#contInfo').textContent = `${c.name} · рівень ${d.player.level} · ${LEVELS[d.level].name} · ${t} хв`; }
+  if (d) { const c = CLASSES.find((x) => x.id === d.cls), t = Math.floor((d.stats.time || 0) / 60); $('#contInfo').textContent = `${c.name} · рівень ${d.player.level} · ${d.zone && ZONES[d.zone] ? ZONES[d.zone].name : LEVELS[d.level].name} · ${t} хв`; }
   menuSelect(0);
 }
 menuBtns().forEach((b, i) => b.addEventListener('mouseenter', () => { menuSelect(menuBtns().indexOf(b)); Sfx.tone(880, 0.05, 'square', 0.025); }));
@@ -834,8 +852,8 @@ $('#btnStart').onclick = () => {
   fade(() => {
     $('#classes').classList.add('hidden'); MENU.hlHero = MENU.hlCard = null; document.body.style.cursor = '';
     createPlayer(cls); Object.assign(G, { time: 0, kills: 0, deaths: 0, seen: {} }); G.tut = newTut(); G.askedTal = null;
-    startLevel(0); G.state = 'cine';
-    Cine.start(cls, () => { G.state = 'play'; Music.play('lvl1'); });
+    G.level = 0; G.cp = null; G.zcp = null; G.zone = null; P.ash = 40; startZone('village', 'start'); G.state = 'cine';
+    Cine.start(cls, () => { G.state = 'play'; Music.play('village'); G.zcp = { x: G.bonfire.x, y: G.bonfire.y + 38, zone: 'village' }; saveGame(); showDialog(STORY.village.map((l) => ({ who: l[0], text: l[1] }))); });
   }, { out: 750, hold: 300, inn: 1000 });
 };
 $('#btnRevive').onclick = () => { $('#dead').classList.add('hidden'); startLevel(G.level, G.cp); P.inv = 1.5; say('Ти воскрес біля вогнища.'); };
@@ -883,6 +901,7 @@ function pxArc(x, y, r, a0, a1, size, col) {
   for (let i = 0; i <= n; i++) { const a = a0 + (a1 - a0) * (i / n); ctx.fillRect(Math.round(x + Math.cos(a) * r - size / 2), Math.round(y + Math.sin(a) * r - size / 2), size, size); }
 }
 function drawTiles() {
+  if (G.zone) { drawZoneTiles(G.time); return; }
   const x0 = Math.max(0, Math.floor((cam.x - W / 2) / TS)), x1 = Math.min(map.w - 1, Math.floor((cam.x + W / 2) / TS)),
     y0 = Math.max(0, Math.floor((cam.y - H / 2) / TS)), y1 = Math.min(map.h - 1, Math.floor((cam.y + H / 2) / TS));
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
@@ -917,6 +936,7 @@ function drawProp(p, t) {
       shadow(0, 0, 11); drawChar('merchant', 0, 9, { anim: 'idle', idx: Math.floor(t * 2 + p.x) % 4, face });
       ctx.fillStyle = '#8a5a2a'; ctx.fillRect(14, 2, 12, 12); ctx.fillStyle = '#b8803a'; ctx.fillRect(14, 2, 12, 4); ctx.fillStyle = '#e8c04a'; ctx.fillRect(18, -2, 4, 4);
       ctx.fillStyle = '#f0c040'; ctx.font = 'bold 16px Georgia'; ctx.textAlign = 'center'; ctx.fillText('◆', 0, -46 + Math.sin(t * 4) * 2); break; }
+    case 'exit': { ctx.fillStyle = '#4a3220'; ctx.fillRect(-2, -34, 4, 36); ctx.fillStyle = '#6a4a28'; ctx.fillRect(-16, -34, 32, 12); ctx.fillStyle = '#8a6a3c'; ctx.fillRect(-16, -34, 32, 2); ctx.fillStyle = '#c9a35a'; ctx.fillRect(-12, -30, 22, 2); ctx.fillRect(-12, -26, 14, 2); break; }
     case 'scroll': ctx.fillStyle = '#d8c48a'; ctx.fillRect(-7, -4, 14, 8); ctx.fillStyle = '#8a6a3a'; ctx.fillRect(-8, -5, 3, 10); ctx.fillRect(5, -5, 3, 10); ctx.fillStyle = '#6a4a2a'; ctx.fillRect(-3, -2, 6, 1); ctx.fillRect(-3, 1, 6, 1);
       if (Math.floor(t * 3 + p.ph) % 2) { ctx.fillStyle = '#ffe08a'; ctx.fillRect(9, -9, 2, 2); ctx.fillRect(-11, -3, 2, 2); } break;
     case 'portal': { const open = G.portalOpen, col = open ? '#a25aff' : '#666a76', col2 = open ? '#e0c0ff' : '#888';
@@ -1109,8 +1129,9 @@ function drawWorld(t) {
     else { ctx.fillStyle = '#ddd'; ctx.fillRect(bx - 2, by - 9, 4, 4); ctx.fillStyle = '#7a1a34'; ctx.fillRect(bx - 5, by - 5, 10, 10); ctx.fillStyle = '#d0304e'; ctx.fillRect(bx - 4, by - 4, 8, 6); ctx.fillStyle = '#ff90a0'; ctx.fillRect(bx - 3, by - 3, 2, 2); }
   });
   drawExt(t); corpses.forEach(drawCorpse);
-  const list = [...enemies.map((e) => ({ y: e.y, f: () => drawEnemy(e, t) })), ...allies.map((a) => ({ y: a.y, f: () => drawAlly(a) })), { y: P.y, f: () => (G.pcorpse ? drawCorpse(G.pcorpse) : drawPlayer(t)) }].sort((a, b) => a.y - b.y);
-  list.forEach((o) => o.f());
+  const list = [...enemies.map((e) => ({ y: e.y, f: () => drawEnemy(e, t) })), ...allies.map((a) => ({ y: a.y, f: () => drawAlly(a) })), ...(G.zone ? zoneDrawList(t) : []), { y: P.y, f: () => (G.pcorpse ? drawCorpse(G.pcorpse) : drawPlayer(t)) }].sort((a, b) => a.y - b.y);
+  list.sort((a, b) => a.y - b.y); list.forEach((o) => o.f());
+  if (G.zone) drawNpcNames();
   effects.forEach((e) => {
     if (e.t < 0) return; const k = e.t / e.life;
     if (e.k === 'ring') { ctx.globalAlpha = 1 - k; pxArc(e.x, e.y, e.r * (0.2 + k * 0.8), 0, 6.283, 4 - Math.round(k * 2), e.color); ctx.fillStyle = e.color; ctx.globalAlpha = (1 - k) * 0.12; ctx.beginPath(); ctx.arc(e.x, e.y, e.r * (0.2 + k * 0.8), 0, 7); ctx.fill(); ctx.globalAlpha = 1; }
@@ -1125,18 +1146,20 @@ function drawWorld(t) {
   return { sx, sy };
 }
 
+let LIGHT_SPR = null;
 function drawLighting(t, sx, sy) {
-  const th = LEVELS[G.level].theme, lw = lightCv.width, lh = lightCv.height;
+  const th = G.zone ? ZONES[G.zone].theme : LEVELS[G.level].theme, lw = lightCv.width, lh = lightCv.height;
   lctx.globalCompositeOperation = 'source-over'; lctx.setTransform(1, 0, 0, 1, 0, 0);
-  lctx.fillStyle = `rgba(3,2,7,${th.ambient})`; lctx.fillRect(0, 0, lw, lh);
+  lctx.fillStyle = `rgba(${th.tint || '3,2,7'},${th.ambient})`; lctx.fillRect(0, 0, lw, lh);
   lctx.globalCompositeOperation = 'destination-out'; lctx.setTransform(0.5, 0, 0, 0.5, sx / 2, sy / 2);
   const light = (x, y, r, a = 1) => {
     if (x + r < cam.x - W / 2 || x - r > cam.x + W / 2 || y + r < cam.y - H / 2 || y - r > cam.y + H / 2) return;
-    const g = lctx.createRadialGradient(x, y, r * 0.1, x, y, r); g.addColorStop(0, `rgba(0,0,0,${a})`); g.addColorStop(0.6, `rgba(0,0,0,${a * 0.5})`); g.addColorStop(1, 'rgba(0,0,0,0)');
-    lctx.fillStyle = g; lctx.beginPath(); lctx.arc(x, y, r, 0, 7); lctx.fill();
+    if (!LIGHT_SPR) { LIGHT_SPR = document.createElement('canvas'); LIGHT_SPR.width = LIGHT_SPR.height = 128; const lc = LIGHT_SPR.getContext('2d'), g = lc.createRadialGradient(64, 64, 6.4, 64, 64, 64); g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(0.6, 'rgba(0,0,0,.5)'); g.addColorStop(1, 'rgba(0,0,0,0)'); lc.fillStyle = g; lc.fillRect(0, 0, 128, 128); }
+    lctx.globalAlpha = a; lctx.drawImage(LIGHT_SPR, x - r, y - r, r * 2, r * 2); lctx.globalAlpha = 1;
   };
   light(P.x, P.y, 250 + Math.sin(t * 3) * 6);
   props.forEach((p) => { if (p.type === 'torch') light(p.x, p.y, 150 + Math.sin(t * 12 + p.ph) * 8, 0.95); else if (p.type === 'bonfire') light(p.x, p.y, 210 + Math.sin(t * 10) * 10); else if (p.type === 'portal' && G.portalOpen) light(p.x, p.y, 130, 0.8); else if (p.type === 'scroll') light(p.x, p.y, 45, 0.7); });
+  if (G.zone) zlights.forEach((l) => light(l.x, l.y, l.r * (1 + 0.03 * Math.sin(t * 5 + l.ph)), l.a));
   projs.forEach((p) => light(p.x, p.y, 55, 0.9));
   effects.forEach((e) => { if (e.k === 'ring') light(e.x, e.y, e.r * 1.2, 1 - e.t / e.life); });
   pickups.forEach((p) => { if (p.type === 'soul') light(p.x, p.y, 40, 0.7); else if (p.type === 'item' && p.item.rar >= 2) light(p.x, p.y, 50, 0.6); });
@@ -1184,16 +1207,18 @@ function drawHUD(t, sx, sy) {
   });
   ctx.textAlign = 'left';
   // Мінікарта
+  if (G.zone) drawZoneMinimap(vw); else {
   const mw = map.w * 3, mh = map.h * 3, mx = vw - mw - 16, my = 16;
   ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(mx - 2, my - 2, mw + 4, mh + 4);
   for (let y = 0; y < map.h; y++) for (let x = 0; x < map.w; x++) if (explored[y * map.w + x]) { ctx.fillStyle = map.t[y * map.w + x] ? '#2a2630' : '#5a5060'; ctx.fillRect(mx + x * 3, my + y * 3, 3, 3); }
   ctx.fillStyle = '#ffd24a'; ctx.fillRect(mx + (P.x / TS) * 3 - 2, my + (P.y / TS) * 3 - 2, 4, 4);
   enemies.forEach((e) => { const tx = Math.floor(e.x / TS), ty = Math.floor(e.y / TS); if (explored[ty * map.w + tx] && (e.aggro || e.elite)) { ctx.fillStyle = e.elite ? '#ff9020' : '#e03030'; ctx.fillRect(mx + (e.x / TS) * 3 - 1, my + (e.y / TS) * 3 - 1, 3, 3); } });
+  }
   // Ціль
   ctx.textAlign = 'center'; ctx.font = '15px Georgia';
   const cfg = LEVELS[G.level];
   ctx.fillStyle = 'rgba(217,207,192,.85)';
-  ctx.fillText(cfg.boss ? 'Здолай Короля Мальгората' : G.portalOpen ? 'Знайди портал' : `Знайди й здолай: ${cfg.elite.name}`, vw / 2, 26);
+  if (G.zone) ctx.fillText(ZONES[G.zone].name, vw / 2, 26); else ctx.fillText(cfg.boss ? 'Здолай Короля Мальгората' : G.portalOpen ? 'Знайди портал' : `Знайди й здолай: ${cfg.elite.name}`, vw / 2, 26);
   // Босс-бар
   if (G.boss && G.boss.aggro && !G.boss.dead) {
     const bw2 = Math.min(600, vw - 80), bx = vw / 2 - bw2 / 2, by = vh - 108;
@@ -1213,8 +1238,8 @@ function drawHUD(t, sx, sy) {
   if (G.toastT > 0) { ctx.globalAlpha = Math.min(1, G.toastT); ctx.font = '14px Georgia'; ctx.textAlign = 'right'; ctx.fillStyle = '#000'; ctx.fillText('💾 ' + G.toast, vw - 15, vh - 13); ctx.fillStyle = '#c9a35a'; ctx.fillText('💾 ' + G.toast, vw - 16, vh - 14); ctx.textAlign = 'center'; ctx.globalAlpha = 1; }
   // Заголовок рівня
   if (G.titleT > 0) {
-    const a = Math.min(1, G.titleT, (3.5 - G.titleT) * 2); ctx.globalAlpha = a; ctx.fillStyle = '#c9a35a'; ctx.font = '16px Georgia'; ctx.fillText(cfg.sub.toUpperCase(), vw / 2, vh * 0.3 - 30);
-    ctx.font = 'bold 44px Georgia'; ctx.fillStyle = '#d9cfc0'; ctx.shadowColor = '#000'; ctx.shadowBlur = 12; ctx.fillText(cfg.name, vw / 2, vh * 0.3 + 14); ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+    const a = Math.min(1, G.titleT, (3.5 - G.titleT) * 2); ctx.globalAlpha = a; ctx.fillStyle = '#c9a35a'; ctx.font = '16px Georgia'; ctx.fillText((G.zone ? 'ЛОКАЦІЯ' : cfg.sub).toUpperCase(), vw / 2, vh * 0.3 - 30);
+    ctx.font = 'bold 44px Georgia'; ctx.fillStyle = '#d9cfc0'; ctx.shadowColor = '#000'; ctx.shadowBlur = 12; ctx.fillText(G.zone ? ZONES[G.zone].name : cfg.name, vw / 2, vh * 0.3 + 14); ctx.shadowBlur = 0; ctx.globalAlpha = 1;
   }
   ctx.textAlign = 'left';
   ctx.restore();
@@ -1358,7 +1383,7 @@ function frame(now) {
     else if (G.state === 'dialog') {
       if (D.pos < D.full.length) { D.pos = Math.min(D.full.length, D.pos + dt * 55); renderDlgText(); } else if (D.choices) renderDlgText();
       if (Binds.pressed('interact') || Input.pressed('Space') || Input.pressed('Enter')) dlgAdvance();
-      cam.x += (P.x - cam.x) * Math.min(1, dt * 8); cam.y += (P.y - cam.y) * Math.min(1, dt * 8);
+      cam.x += (P.x - cam.x) * Math.min(1, dt * 8); cam.y += (P.y - cam.y) * Math.min(1, dt * 8); if (G.zone) zoneCam();
     }
     ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
     const { sx, sy } = drawWorld(G.time);

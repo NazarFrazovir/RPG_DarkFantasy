@@ -23,7 +23,7 @@ let tutHtml = '', tutDoneT = 0, tipT = 0;
 function newTut() { return { on: Settings.v.hints, done: !Settings.v.hints, step: 0, moved: 0, hits: 0, dodged: false, ability: false, rested: false, goalT: 0, okT: 0, tips: {} }; }
 function tutEvent(name) { if (G.tut) G.tut[name] = true; }
 function tutRemoveDummy() { enemies = enemies.filter((e) => !e.dummy); }
-function tutActive() { return G.tut && G.tut.on && !G.tut.done && Settings.v.hints; }
+function tutActive() { return G.tut && G.tut.on && !G.tut.done && Settings.v.hints && !G.zone; }
 
 function tutUpdate(dt) {
   const t = G.tut;
