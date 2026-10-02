@@ -1152,6 +1152,7 @@ function drawWorld(t) {
 let LIGHT_SPR = null;
 function drawLighting(t, sx, sy) {
   const th = G.zone ? ZONES[G.zone].theme : LEVELS[G.level].theme, lw = lightCv.width, lh = lightCv.height;
+  if (th.ambient === 0) return; // без затемнення (день)
   lctx.globalCompositeOperation = 'source-over'; lctx.setTransform(1, 0, 0, 1, 0, 0);
   lctx.fillStyle = `rgba(${th.tint || '3,2,7'},${th.ambient})`; lctx.fillRect(0, 0, lw, lh);
   lctx.globalCompositeOperation = 'destination-out'; lctx.setTransform(0.5, 0, 0, 0.5, sx / 2, sy / 2);
@@ -1160,7 +1161,7 @@ function drawLighting(t, sx, sy) {
     if (!LIGHT_SPR) { LIGHT_SPR = document.createElement('canvas'); LIGHT_SPR.width = LIGHT_SPR.height = 128; const lc = LIGHT_SPR.getContext('2d'), g = lc.createRadialGradient(64, 64, 6.4, 64, 64, 64); g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(0.6, 'rgba(0,0,0,.5)'); g.addColorStop(1, 'rgba(0,0,0,0)'); lc.fillStyle = g; lc.fillRect(0, 0, 128, 128); }
     lctx.globalAlpha = a; lctx.drawImage(LIGHT_SPR, x - r, y - r, r * 2, r * 2); lctx.globalAlpha = 1;
   };
-  light(P.x, P.y, 250 + Math.sin(t * 3) * 6);
+  light(P.x, P.y, (th.sight || 250) + Math.sin(t * 3) * 6);
   props.forEach((p) => { if (p.type === 'torch') light(p.x, p.y, 150 + Math.sin(t * 12 + p.ph) * 8, 0.95); else if (p.type === 'bonfire') light(p.x, p.y, 210 + Math.sin(t * 10) * 10); else if (p.type === 'portal' && G.portalOpen) light(p.x, p.y, 130, 0.8); else if (p.type === 'scroll') light(p.x, p.y, 45, 0.7); });
   if (G.zone) zlights.forEach((l) => light(l.x, l.y, l.r * (1 + 0.03 * Math.sin(t * 5 + l.ph)), l.a));
   projs.forEach((p) => light(p.x, p.y, 55, 0.9));

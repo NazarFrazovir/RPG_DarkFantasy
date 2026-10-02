@@ -133,7 +133,7 @@ function cityNpcs(B) {
   B.animal({ kind: 'cat', x: 31, y: 28, radius: 5, speed: 28, col: '#c88a3a' }); B.animal({ kind: 'cat', x: 60, y: 30, radius: 6, speed: 28, col: '#3a3a42' });
   for (let i = 0; i < 4; i++) B.animal({ kind: 'chicken', x: 12 + i * 3, y: 47, radius: 4, col: '#9a9aa6' });
 }
-ZONES.city = { name: 'Місто Ейри', w: 80, h: 60, base: GK.COBBLE, music: 'city', theme: { ambient: 0.38, tint: '12,12,32' }, build: buildCity };
+ZONES.city = { name: 'Місто Ейри', w: 80, h: 60, base: GK.COBBLE, music: 'city', theme: { ambient: 0 }, build: buildCity };
 
 interior('guild', 'Гільдія Шукачів', 22, 14, { exit: 'guild', exitZone: 'city', music: 'tavern', ambient: 0.3 }, (B) => {
   B.fill(GK.RUG, 8, 4, 6, 6); B.hearth(15, 1); B.shelf(2, 1, 3); B.shelf(6, 1, 3, false); B.rack(10, 1, 3);

@@ -209,7 +209,7 @@ function buildVillage(B) {
   villageNpcs(B);
 }
 
-ZONES.village = { name: 'Селище Попіл', w: 88, h: 64, base: GK.GRASS, music: 'village', theme: { ambient: 0.36, tint: '14,18,46' }, build: buildVillage };
+ZONES.village = { name: 'Селище Попіл', w: 88, h: 64, base: GK.GRASS, music: 'village', theme: { ambient: 0 }, build: buildVillage };
 
 interior('tavern', 'Шинок «Тліючий Ріг»', 22, 14, { exit: 'tavern', music: 'tavern' }, (B) => {
   B.fill(GK.RUG, 14, 3, 6, 5);

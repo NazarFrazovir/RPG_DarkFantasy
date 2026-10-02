@@ -152,4 +152,4 @@ function buildForest(B) {
   }
   for (let i = 0; i < 50; i++) { const x = 4 + Math.floor(rng() * 88), y = 4 + Math.floor(rng() * 64), k = idx(x, y); if (!B.t[k] && !B.noTree[k] && B.g[k] === GK.GRASS) (rng() < 0.55 ? B.bush(x, y) : B.rock(x, y)); }
 }
-ZONES.forest = { name: 'Сіре Узлісся', w: 96, h: 72, base: GK.GRASS, music: 'forest', theme: { ambient: 0.42, tint: '8,18,16' }, cfg: { scale: 1.5, xpMul: 1.15, elite: { name: 'Вожак', big: true } }, build: buildForest };
+ZONES.forest = { name: 'Сіре Узлісся', w: 96, h: 72, base: GK.GRASS, music: 'forest', theme: { ambient: 0.2, tint: '8,18,16', sight: 780 }, cfg: { scale: 1.5, xpMul: 1.15, elite: { name: 'Вожак', big: true } }, build: buildForest };
