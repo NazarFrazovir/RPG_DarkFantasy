@@ -173,7 +173,7 @@ ZB.prototype.house = function (x, y, w, h, o = {}) {
   const st = { wall: o.wall || 'plaster', roof: o.roof || 'red', door: o.door, sign: o.sign, chimney: o.chimney, blank: o.blank };
   const spriteC = houseSprite(w, h, st), dtx = x + (o.door !== undefined ? o.door : Math.floor(w / 2));
   this.block(x, y, w, h, 2);
-  this.obj({ x0: x * TS, y0: y * TS, x1: (x + w) * TS, y1: (y + h) * TS, y: (y + h) * TS, draw: () => blit(spriteC, x * TS, y * TS) });
+  this.obj({ x0: x * TS, y0: (y - 1) * TS, x1: (x + w) * TS, y1: (y + h) * TS, y: (y + h) * TS, draw: () => { blit(spriteC, x * TS, y * TS); if (o.mark) { const m = [].concat(o.mark).map((id) => questMark({ id })).find(Boolean); if (m) { ctx.save(); ctx.fillStyle = m === '?' ? '#fff2a0' : '#ffd24a'; ctx.font = 'bold 26px Georgia'; ctx.textAlign = 'center'; ctx.shadowColor = '#000'; ctx.shadowBlur = 5; ctx.fillText(m, (dtx + 0.5) * TS, (y + h) * TS - 56 + Math.sin(G.time * 4) * 3); ctx.restore(); } } } });
   if (o.blank) return { dtx, doorX: 0, doorY: 0 };
   const doorY = (y + h) * TS, doorX = (dtx + 0.5) * TS;
   for (let i = 0; i < w; i++) { if (Math.abs(i - (dtx - x)) < 1) continue; if (i % 2 === 0 && i > 0 && i < w - 1) this.light((x + i + 0.7) * TS, (y + h - 0.7) * TS, 62, 0.8); }
@@ -271,6 +271,7 @@ function makeNpc(d) {
 function talkNpc(n) {
   if (n.busy || G.state !== 'play') return;
   n.busy = true; n.face = angTo(n, P); n.moving = false;
+  if (questHook(n)) return;
   const sets = n.talks || [], pick = n.talked === 0 || sets.length < 2 ? sets[0] : sets[1 + Math.floor(Math.random() * (sets.length - 1))];
   const lines = (pick || [['Гм?']]).map((l) => ({ who: n.name, text: l }));
   n.talked++;
@@ -317,7 +318,8 @@ function drawNpc(n, t) {
   ctx.save(); ctx.translate(Math.round(n.x), Math.round(n.y));
   shadow(0, 0, n.scale ? 8 : 11);
   drawChar(n.look, 0, 9, { anim: n.moving ? 'walk' : 'idle', idx: Math.floor(n.anim * (n.moving ? 8 : 2.2) + n.x) % (n.moving ? 6 : 4), face: n.face, scale: n.scale, oy: n.scale ? 1 : 0 });
-  if (!n.noMark && !n.busy) { ctx.fillStyle = n.vendor ? '#f0c040' : '#e8c04a'; ctx.font = 'bold 16px Georgia'; ctx.textAlign = 'center'; ctx.fillText(n.vendor ? '◆' : '!', 0, -44 + Math.sin(t * 4 + n.x) * 2); }
+  const qm = questMark(n), mk = qm || (n.vendor ? '◆' : '');
+  if (mk && !n.noMark && !n.busy) { ctx.fillStyle = qm === '?' ? '#fff2a0' : qm ? '#ffd24a' : '#f0c040'; ctx.font = qm ? 'bold 22px Georgia' : 'bold 16px Georgia'; ctx.textAlign = 'center'; ctx.shadowColor = '#000'; ctx.shadowBlur = qm ? 4 : 0; ctx.fillText(mk, 0, -44 + Math.sin(t * 4 + n.x) * 2); ctx.shadowBlur = 0; }
   ctx.restore();
 }
 function drawCritter(c, t) {
@@ -362,7 +364,7 @@ function startZone(id, spawn, pos) {
   const sp = pos || B.spawns[spawn || 'default'] || { x: (Z.w / 2) * TS, y: (Z.h / 2) * TS };
   P.x = sp.x; P.y = sp.y; P.hp = Math.max(P.hp, 1); P.shield = 0; P.invisT = 0; P.wallT = 0; P.inv = 0.5; P.dodgeT = 0;
   cam.x = P.x; cam.y = P.y; zoneCam();
-  Music.play(Z.music || 'village'); Music.target = 0; Music.phase2 = false;
+  Music.play(Z.music || 'village'); Music.target = 0; Music.phase2 = false; if (typeof questEvent === 'function') questEvent('visit', G.zone);
   G.zspawn = spawn; G.titleT = Z.interior ? 0 : 3.5; G.state = 'play';
   if (!Z.interior) G.zcp = G.zcp || null;
   if (Z.onEnter) Z.onEnter(G.zone);

@@ -87,7 +87,7 @@ function createPlayer(c) {
     cls: c, x: 0, y: 0, r: 10, hp: c.hp, maxHp: c.hp, speed: c.speed, dmg: c.dmg, atkT: 0, dodgeT: 0, dodgeCdT: 0, dodgeDir: { x: 0, y: 1 },
     inv: 0, abT: 0, potions: 3, maxPotions: 3, potionHeal: 0.4, level: 1, xp: 0, xpNext: 40, crit: 0.05, lifesteal: 0, face: 0, flash: 0,
     dmgMul: 1, spdMul: 1, asMul: 1, cdr: 0, dodgeMul: 1, xpMul: 1, magnet: 110, vx: 0, vy: 0, animT: 0,
-    ash: 0, bag: [], equip: {}, stash: {}, talents: [], points: 0, sub: null, asc: null, souls: 0, soulCount: 0, shield: 0, shieldT: 0, bShield: 0, bRegen: 6, autoT: 0, houndT: 0, parryT: 0, invisT: 0, wallT: 0, ghostT: 0, swings: 0, emberLeft: 0, arrows: 0,
+    ash: 0, bag: [], equip: {}, stash: {}, quests: {}, memory: 0, notes: [], track: null, talents: [], points: 0, sub: null, asc: null, souls: 0, soulCount: 0, shield: 0, shieldT: 0, bShield: 0, bRegen: 6, autoT: 0, houndT: 0, parryT: 0, invisT: 0, wallT: 0, ghostT: 0, swings: 0, emberLeft: 0, arrows: 0,
   };
   recalcPlayer();
 }
@@ -175,7 +175,7 @@ function startLevel(i, cp) {
     props.push(portal);
     inter.push({ x: portal.x, y: portal.y, r: 50, label: 'Увійти в портал', act: () => {
       if (!G.portalOpen) { float(P.x, P.y - 24, 'Портал замкнено — здолай вартового', '#cc6666'); return; }
-      if (G.fading) return; const cleared = G.level; G.unlocked = Math.max(G.unlocked || 0, cleared + 1); Sfx.play('level'); fade(() => { G.cp = null; startZone('city', 'gate' + cleared); say(LEVELS[Math.min(cleared + 1, LEVELS.length - 1)].name + ' — брама відкрита'); toast('Нова брама відкрита!'); saveGame(); }, { out: 550, hold: 200, inn: 800 });
+      if (G.fading) return; const cleared = G.level; G.unlocked = Math.max(G.unlocked || 0, cleared + 1); questEvent('dungeon', cleared); Sfx.play('level'); fade(() => { G.cp = null; startZone('city', 'gate' + cleared); say(LEVELS[Math.min(cleared + 1, LEVELS.length - 1)].name + ' — брама відкрита'); toast('Нова брама відкрита!'); saveGame(); }, { out: 550, hold: 200, inn: 800 });
     }, dyn: () => (G.portalOpen ? 'Увійти в портал' : 'Портал замкнено') });
     // сувої лору
     cfg.lore.forEach((text, k) => {
@@ -227,7 +227,7 @@ function dmgFloat(x, y, text, color, big) { if (Settings.v.dmgNums) float(x, y, 
 function float(x, y, text, color = '#fff', big = false) { texts.push({ x, y, text, color, t: 0, big }); }
 // ---------- Збереження й чекпоінти ----------
 const SAVE_KEY = 'ashtorn.save.v1';
-const SAVE_FIELDS = ['level', 'xp', 'xpNext', 'potions', 'talents', 'points', 'sub', 'asc', 'bag', 'equip', 'ash', 'stash'];
+const SAVE_FIELDS = ['level', 'xp', 'xpNext', 'potions', 'talents', 'points', 'sub', 'asc', 'bag', 'equip', 'ash', 'stash', 'quests', 'memory', 'notes', 'track'];
 function packExplored() {
   if (!explored || !explored.length) return [];
   const out = [explored[0]]; let run = 1;
@@ -318,6 +318,7 @@ function killEnemy(e) {
   for (let i = 0; i < orbs; i++) pickups.push({ type: 'soul', x: e.x, y: e.y, v: e.xp / orbs, vx: rand(-80, 80), vy: rand(-80, 80), t: 0 });
   if (!e.minion && Math.random() < (e.elite ? 1 : TUNE.potionDrop)) pickups.push({ type: 'potion', x: e.x, y: e.y, vx: 0, vy: 0, t: 0 });
   dropLoot(e); dropCoins(e); dropMats(e);
+  if (!e.minion) { questEvent('kill', e.type); questEvent('killname', e.name); }
   if (e.elite) { G.portalOpen = true; say(LEVELS[G.level].portalMsg); Sfx.play('level'); G.shake = 10; }
   if (e.ai === 'boss') bossDefeated();
 }
@@ -656,6 +657,7 @@ function update(dt) {
   if (G.state === 'play' && !G.noPerk && (needSub() || needAsc()) && G.askedTal !== P.level + ':' + (needSub() ? 's' : 'a') && !enemies.some((e) => e.aggro && !e.dead && !e.dummy && dist(e, P) < 480)) { G.askedTal = P.level + ':' + (needSub() ? 's' : 'a'); openTalents(); }
   if (G.state === 'play' && Binds.pressed('talents')) openTalents();
   if (G.state === 'play' && Binds.pressed('inv')) openInv();
+  if (G.state === 'play' && Binds.pressed('journal')) openJournal();
   if (G.tut) { G.tut.moved = (G.tut.moved || 0) + Math.hypot(P.x - px0g, P.y - py0g); tutUpdate(dt); }
 }
 
@@ -882,6 +884,7 @@ document.querySelectorAll('.fsBtn').forEach((b) => (b.onclick = () => { toggleFs
 addEventListener('keydown', (e) => {
   if (Binds.matches('fullscreen', e.code)) toggleFs();
   if (Binds.matches('mute', e.code)) { Sfx.toggle(); syncSound(); }
+  if (G.state === 'journal' && !e.repeat && (e.code === 'Escape' || Binds.matches('journal', e.code))) { closeJournal(); e.escUsed = true; return; }
   if (G.state === 'craft' && !e.repeat && (e.code === 'Escape' || Binds.matches('interact', e.code))) { closeCraft(); G.actBlock = true; e.escUsed = true; return; }
   if (G.state === 'shop' && !e.repeat && (e.code === 'Escape' || Binds.matches('interact', e.code))) { closeShop(); G.actBlock = true; e.escUsed = true; return; }
   if (G.state === 'inv' && !e.repeat && (e.code === 'Escape' || Binds.matches('inv', e.code))) { closeInv(); e.escUsed = true; return; }
@@ -1195,6 +1198,7 @@ function drawHUD(t, sx, sy) {
   ctx.fillStyle = '#c9a35a'; ctx.fillText(`${P.cls.name} · Рівень ${P.level}` + (P.sub ? ' · ' + SUB_BY_ID[P.sub].name : ''), 18, 76);
   if (P.points > 0 || needSub() || needAsc()) { ctx.fillStyle = Math.floor(t * 2) % 2 ? '#ffd24a' : '#fff2c8'; ctx.fillText('✦ ' + (needSub() ? 'обери підклас' : needAsc() ? 'обери вознесіння' : 'очок талантів: ' + P.points) + ' — [' + keyLabel(Settings.binds.talents[0]) + ']', 18, 94); }
   ctx.fillStyle = G.ashFlash > 0 ? '#fff0b0' : '#f0c040'; ctx.fillText('◆ Попіл: ' + P.ash, 18, 112);
+  drawQuestTracker(18, 138);
   if (P.shield > 0 || P.bShield > 0) { ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(18, 40, bw, 5); ctx.fillStyle = P.shield > 0 ? '#d8b26a' : '#cfc8b0'; ctx.fillRect(18, 40, bw * Math.min(1, (P.shield + P.bShield) / 60), 5); }
   // Кулдауни
   const slots = [

@@ -275,3 +275,26 @@ canvas.itemIcon { position: static; width: 48px; height: 48px; cursor: pointer; 
 .craftRow .btn { padding: 6px 14px; font-size: 14px; }
 .craftRow .btn:disabled { opacity: .35; cursor: default; }
 #craftMsg b { font-size: 16px; }
+
+/* ---- Журнал ---- */
+#journal { justify-content: flex-start; padding-top: clamp(10px, 4vh, 40px); gap: 10px; overflow-y: auto; background: radial-gradient(ellipse at center, rgba(16,10,6,.94), rgba(2,1,3,.98)); }
+#journal h2 { margin: 0; }
+#jMem b { color: #ffd24a; letter-spacing: .1em; }
+#jWrap { display: grid; grid-template-columns: minmax(260px, 330px) minmax(320px, 460px); gap: 20px; align-items: start; text-align: left; width: min(860px, 94vw); }
+#jTabs { display: flex; gap: 4px; margin-bottom: 8px; }
+#jList { display: flex; flex-direction: column; gap: 5px; max-height: 52vh; overflow-y: auto; }
+.jItem { padding: 7px 10px; border: 1px solid #3a2a22; background: rgba(20,12,14,.85); cursor: pointer; }
+.jItem b { display: block; font-size: 14px; color: #f0e2c0; }
+.jItem small { display: block; font-size: 11px; opacity: .7; }
+.jItem.main { border-left: 3px solid #c9a35a; }
+.jItem.sel { border-color: #ffd24a; background: rgba(80,44,18,.75); }
+.jItem:hover { background: rgba(60,30,18,.9); }
+#jDetail { border: 1px solid #3a2a22; background: rgba(14,8,10,.9); padding: 14px 16px; min-height: 240px; }
+#jDetail h3 { margin: 0 0 4px; color: #ffd24a; font-size: 19px; letter-spacing: .04em; }
+.jMeta { font-size: 12px; opacity: .65; margin: 2px 0 8px; }
+.jTxt { font-size: 14px; line-height: 1.55; margin: 0 0 10px; color: #d8cdb8; }
+.jObj { list-style: none; padding: 0; margin: 0 0 10px; font-size: 14px; line-height: 1.7; }
+.jObj li { color: #e8dcc0; } .jObj li.yes { color: #8ad89a; } .jObj li.dim { opacity: .4; }
+.jRew { font-size: 13px; color: #f0c040; margin-bottom: 10px; }
+.yes { color: #8ad89a; }
+@media (max-width: 760px) { #jWrap { grid-template-columns: 1fr; } }

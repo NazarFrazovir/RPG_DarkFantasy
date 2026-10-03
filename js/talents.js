@@ -252,7 +252,7 @@ function renderTalents() {
 }
 function openTalents() {
   if (G.state !== 'play' && G.state !== 'dialog') return; if (G.state === 'dialog') return;
-  G.talPrev = 'play'; G.state = 'talents'; renderTalents(); talEl.classList.remove('hidden'); Sfx.play('click');
+  questEvent('ui', 'talents'); G.talPrev = 'play'; G.state = 'talents'; renderTalents(); talEl.classList.remove('hidden'); Sfx.play('click');
 }
 function closeTalents() { talEl.classList.add('hidden'); G.state = 'play'; }
 $('#talClose').onclick = closeTalents;

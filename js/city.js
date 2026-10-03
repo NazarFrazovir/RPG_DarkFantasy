@@ -60,7 +60,7 @@ ZB.prototype.fountain = function (tx, ty) {
 };
 ZB.prototype.statue = function (tx, ty, text) {
   this.deco(tx, ty, 2, 1, 'statue', 32, 62, (R) => { R(2, 48, 28, 12, '#5a5a66'); R(2, 48, 28, 3, '#8a8a96'); R(6, 38, 20, 10, '#6a6a76'); R(11, 16, 10, 24, '#8a8a96'); R(11, 16, 3, 24, '#a8a8b4'); R(7, 18, 4, 16, '#8a8a96'); R(21, 18, 4, 16, '#7a7a86'); R(12, 8, 8, 9, '#b0b0bc'); R(12, 8, 8, 9, '#a0a0ac'); R(10, 4, 12, 4, '#c9a35a'); for (let i = 0; i < 3; i++) R(10 + i * 5, 1, 2, 4, '#c9a35a'); R(13, 11, 6, 4, '#8a8a96'); R(14, 40, 4, 1, '#3a3a44'); }, { ox: 0 });
-  if (text) this.door((tx + 1) * TS, (ty + 1) * TS + 16, 60, 'Оглянути статую', () => showDialog(text.map((l) => ({ who: '', text: l }))));
+  if (text) this.door((tx + 1) * TS, (ty + 1) * TS + 16, 60, 'Оглянути статую', () => { useEvent('statue'); addNote('statue', 'Статуя короля', text.join(' ')); showDialog(text.map((l) => ({ who: '', text: l }))); });
 };
 ZB.prototype.bench = function (tx, ty) { this.deco(tx, ty, 2, 1, 'bench', 32, 14, (R) => { R(0, 2, 32, 4, '#6a4a28'); R(0, 2, 32, 1, '#8a6a3c'); R(2, 6, 3, 7, '#3a2814'); R(27, 6, 3, 7, '#3a2814'); R(0, 7, 32, 2, '#5a3e22'); }); };
 ZB.prototype.banner = function (tx, ty, col) { this.deco(tx, ty, 1, 1, 'banner' + col, 12, 40, (R) => { R(5, 0, 2, 40, '#3a2814'); R(0, 4, 12, 24, col); R(0, 4, 12, 2, zsh(col, 1.3)); R(3, 12, 6, 6, '#e0c060'); R(0, 26, 4, 4, zsh(col, 0.7)); R(8, 26, 4, 4, zsh(col, 0.7)); }, { solid: false, ox: 4 }); };
@@ -84,7 +84,7 @@ function buildCity(B) {
   B.sign(36, 5, ['«Північна брама. Дорога на селище Попіл.»', 'Під написом: «Вартові — не жебраки. Не просіть.»']);
   // будинки
   B.house(5, 19, 7, 7, { wall: 'stone', roof: 'blue' }); B.house(13, 20, 6, 6, { wall: 'plaster', roof: 'red' }); B.house(20, 19, 7, 7, { wall: 'stone', roof: 'slate' }); B.house(28, 20, 6, 6, { wall: 'plaster', roof: 'moss' });
-  B.house(46, 17, 10, 9, { wall: 'stone', roof: 'slate', sign: 'coin', door: 5, enter: 'guild', name: 'Гільдія Шукачів', spawn: 'guild', enterSpawn: 'door' });
+  B.house(46, 17, 10, 9, { wall: 'stone', roof: 'slate', sign: 'coin', door: 5, enter: 'guild', name: 'Гільдія Шукачів', spawn: 'guild', enterSpawn: 'door', mark: ['revn'] });
   B.house(57, 19, 7, 7, { wall: 'plaster', roof: 'red' }); B.house(65, 20, 6, 6, { wall: 'stone', roof: 'blue' }); B.house(72, 20, 5, 6, { wall: 'white', roof: 'red', sign: 'bread', door: 2 });
   B.house(6, 50, 9, 6, { wall: 'stone', roof: 'slate', sign: 'anvil', door: 4 }); B.house(18, 50, 7, 6, { wall: 'plaster', roof: 'red', sign: 'herb', door: 3 }); B.house(28, 50, 6, 6, { wall: 'log', roof: 'thatch' });
   // центр

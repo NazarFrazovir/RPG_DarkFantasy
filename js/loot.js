@@ -75,7 +75,7 @@ function applyItems(m) {
 }
 
 // ---------- Сумка й одягання ----------
-function lootInit() { stashInit(); if (!Array.isArray(P.bag)) P.bag = []; if (!P.equip || typeof P.equip !== 'object') P.equip = {}; P.bag = P.bag.filter(validItem); SLOTS.forEach((s) => { if (!validItem(P.equip[s.id])) delete P.equip[s.id]; }); }
+function lootInit() { stashInit(); questInit(); if (!Array.isArray(P.bag)) P.bag = []; if (!P.equip || typeof P.equip !== 'object') P.equip = {}; P.bag = P.bag.filter(validItem); SLOTS.forEach((s) => { if (!validItem(P.equip[s.id])) delete P.equip[s.id]; }); }
 function equipItem(it) {
   const i = P.bag.indexOf(it); if (i < 0) return false;
   const old = P.equip[it.slot]; P.bag.splice(i, 1); if (old) P.bag.push(old); P.equip[it.slot] = it;
@@ -201,7 +201,7 @@ function showTip(it, cmp) {
 }
 function openInv() {
   if (G.state !== 'play') return;
-  G.state = 'inv'; renderInv(); showTip(null); invEl.classList.remove('hidden'); Sfx.play('click');
+  questEvent('ui', 'inv'); G.state = 'inv'; renderInv(); showTip(null); invEl.classList.remove('hidden'); Sfx.play('click');
 }
 function closeInv() { invEl.classList.add('hidden'); G.state = 'play'; }
 $('#invClose').onclick = closeInv;

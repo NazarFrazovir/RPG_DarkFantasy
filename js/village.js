@@ -142,15 +142,15 @@ function buildVillage(B) {
   B.ellipse(GK.SAND, 74, 52, 8, 6); B.ellipse(GK.WATER, 74, 52, 5.5, 4, 2);
   B.fill(GK.DGRASS, 0, 0, W, 3); B.fill(GK.DGRASS, 0, 61, W, 3); B.fill(GK.DGRASS, 0, 0, 4, H); B.fill(GK.DGRASS, 84, 0, 4, H);
   // --- будівлі
-  B.house(28, 23, 7, 6, { wall: 'plaster', roof: 'red', enter: 'elder', name: 'Дім старости', spawn: 'elder', enterSpawn: 'door' });
-  B.house(21, 24, 5, 5, { wall: 'log', roof: 'thatch', enter: 'home', name: 'Рідна хата', spawn: 'home', enterSpawn: 'door' });
+  B.house(28, 23, 7, 6, { wall: 'plaster', roof: 'red', enter: 'elder', name: 'Дім старости', spawn: 'elder', enterSpawn: 'door', mark: 'goran' });
+  B.house(21, 24, 5, 5, { wall: 'log', roof: 'thatch', enter: 'home', name: 'Рідна хата', spawn: 'home', enterSpawn: 'door', mark: 'anna' });
   B.house(12, 23, 6, 6, { wall: 'plaster', roof: 'moss', chimney: true });
   B.house(53, 23, 6, 6, { wall: 'white', roof: 'red', sign: 'bread', door: 2 });
   B.house(66, 22, 6, 7, { wall: 'plaster', roof: 'blue' });
   B.house(74, 23, 6, 6, { wall: 'log', roof: 'thatch' });
-  B.house(55, 12, 8, 8, { wall: 'stone', roof: 'slate', sign: 'cross', enter: 'chapel', name: 'Каплиця Свічок', spawn: 'chapel', enterSpawn: 'door' });
-  B.house(55, 33, 10, 8, { wall: 'plaster', roof: 'red', sign: 'mug', door: 5, enter: 'tavern', name: 'Шинок «Тліючий Ріг»', spawn: 'tavern', enterSpawn: 'door' });
-  B.house(67, 34, 7, 7, { wall: 'stone', roof: 'slate', sign: 'anvil', enter: 'smithy', name: 'Кузня', spawn: 'smithy', enterSpawn: 'door' });
+  B.house(55, 12, 8, 8, { wall: 'stone', roof: 'slate', sign: 'cross', enter: 'chapel', name: 'Каплиця Свічок', spawn: 'chapel', enterSpawn: 'door', mark: 'ivar' });
+  B.house(55, 33, 10, 8, { wall: 'plaster', roof: 'red', sign: 'mug', door: 5, enter: 'tavern', name: 'Шинок «Тліючий Ріг»', spawn: 'tavern', enterSpawn: 'door', mark: ['orm', 'lir'] });
+  B.house(67, 34, 7, 7, { wall: 'stone', roof: 'slate', sign: 'anvil', enter: 'smithy', name: 'Кузня', spawn: 'smithy', enterSpawn: 'door', mark: ['bran', 'cust'] });
   B.house(26, 35, 6, 6, { wall: 'plaster', roof: 'thatch', door: 3 });
   B.house(15, 35, 7, 6, { wall: 'log', roof: 'moss' });
   B.house(24, 47, 9, 7, { wall: 'log', roof: 'thatch', chimney: false, door: 4, enter: 'barn', name: 'Комора', spawn: 'barn', enterSpawn: 'door' });
@@ -179,6 +179,8 @@ function buildVillage(B) {
   // --- кладовище біля каплиці
   B.fence(65, 12, 72, 12); B.fence(65, 20, 72, 20); B.fence(72, 12, 72, 20); B.fence(65, 12, 65, 20, [7, 8]);
   for (let i = 0; i < 9; i++) B.grave(66 + (i % 3) * 2, 14 + Math.floor(i / 3) * 2, i);
+  [[66, 14, 'grave1', 'Ерік Щирий', 'Він пам’ятав імена всіх у селищі. Тепер ніхто не пам’ятає його.'], [68, 16, 'grave2', 'Ліда Швачка', 'Вона шила одяг для тих, кого вже не було. Нитка в її руках не рвалась.'], [70, 18, 'grave3', 'Хлопчик (без імені)', 'Найменша могила. Ім’я було, а потім його не стало. На камені — лише подряпини.']].forEach(([x, y, key, nm, tx]) => B.door((x + 0.5) * TS, (y + 1) * TS + 10, 44, 'Прочитати напис', () => { useEvent(key); addNote(key, 'Могила: ' + nm, tx); showDialog([{ who: '', text: 'На камені: «' + nm + '». ' + tx }, { who: '', text: 'Ти вимовляєш ім’я вголос. Повітря стає трохи теплішим.' }]); }));
+  [[25, 55], [29, 56], [31, 55], [26, 57], [30, 57]].forEach(([x, y]) => B.node(x, y, 'nest'));
   // --- ставок: очерет і лавка
   B.deco(66, 52, 1, 1, 'dock', 48, 14, (R) => { R(0, 3, 48, 8, '#6a4a28'); for (let i = 0; i < 48; i += 8) R(i, 3, 1, 8, '#3a2814'); R(0, 3, 48, 2, '#8a6a3c'); }, { solid: false, sort: -20 });
   [[69, 48], [79, 55], [70, 56], [78, 49], [80, 52]].forEach(([x, y]) => B.flowers(x, y, '#f0f0f0'));
@@ -234,8 +236,8 @@ interior('elder', 'Дім старости', 16, 12, { exit: 'elder', music: 'ta
 interior('home', 'Рідна хата', 14, 11, { exit: 'home', music: 'tavern', ambient: 0.26, tint: '30,14,8' }, (B) => {
   B.fill(GK.RUG, 4, 4, 5, 4); B.hearth(5, 1); B.bed(1, 3, '#4a6a8a'); B.cradle(4, 3); B.table(9, 6, 2); B.stool(8, 6); B.chest(1, 8);
   B.mirror(11, 1);
-  B.door(11.5 * TS, 2.4 * TS, 46, 'Подивитись у дзеркало', () => showDialog([{ who: '', text: 'У дзеркалі — ти. На мить — хтось старший, із золотом на чолі. Моргаєш — і лише твоє обличчя.' }, { who: '', text: 'Відображення дивиться не так, як ти. Наче чекає.' }]));
-  B.door(4.5 * TS, 3.2 * TS, 46, 'Оглянути колиску', () => showDialog([{ who: '', text: 'На дерев’яному краю колиски — вирізане ім’я. Хтось його стер ножем: лише подряпини і кілька літер, що вже нічого не означають.' }]));
+  B.door(11.5 * TS, 2.4 * TS, 46, 'Подивитись у дзеркало', () => { useEvent('mirror'); addNote('mirror', 'Дзеркало в рідній хаті', 'На мить у дзеркалі — хтось старший, із золотом на чолі. Потім лише твоє обличчя. Відображення дивиться не так, як ти.'); showDialog([{ who: '', text: 'У дзеркалі — ти. На мить — хтось старший, із золотом на чолі. Моргаєш — і лише твоє обличчя.' }, { who: '', text: 'Відображення дивиться не так, як ти. Наче чекає.' }]); });
+  B.door(4.5 * TS, 3.2 * TS, 46, 'Оглянути колиску', () => { useEvent('cradle'); addNote('cradle', 'Колиска', 'На краю колиски вирізане ім’я. Хтось стер його ножем — лишились подряпини й кілька літер, що вже нічого не означають.'); showDialog([{ who: '', text: 'На дерев’яному краю колиски — вирізане ім’я. Хтось його стер ножем: лише подряпини і кілька літер, що вже нічого не означають.' }]); });
   B.npc({ id: 'anna', name: 'Стара Анна', look: 'oldwoman', x: 9, y: 4, look0: 1.57, talks: [
     L('Хата не моя. Просто дивлюсь за нею. Давно нікого… Давно.', 'Тут жив хлопчик. Тихий, уперта голова. Ім’я? Було гарне. Він колись пішов до замку — а може, його забрали.', 'Двері самі відчинились, коли ти підійшов. Вони так робили лише для нього.'),
     L('Ти схожий на нього. Лише очі… не ті. Хоча може, я помиляюсь. Я вже давно помиляюсь.'),
@@ -251,5 +253,6 @@ interior('barn', 'Комора', 20, 12, { exit: 'barn', music: 'tavern', ambien
 STORY.village = [
   ['', 'Ти приходиш до тями на околиці селища Попіл, біля брами Цвинтаря.'],
   ['', 'Сонце сідає. У вікнах горить тепле світло, але люди ходять тихо — наче бояться забути, як їх звати.'],
-  ['', 'Спершу — оглянься. Поговори з мешканцями. Підземелля починаються не тут: дорога на південь веде до Міста Ейри.'],
+  ['', 'Спершу — оглянься. Над тими, хто має завдання, стоїть «!»; над будинками теж. Староста Горан — у домі біля площі.'],
+  ['', 'Журнал — [J]. Підземелля починаються не тут: дорога на південь веде до Міста Ейри.'],
 ];

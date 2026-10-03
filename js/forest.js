@@ -11,6 +11,7 @@ const NODES = {
   stone:    { tool: 'pickaxe', label: 'Добувати камінь', yield: [['stone', [1, 3]]], respawn: 240, fx: '#9a9aa6' },
   herb:     { label: 'Зібрати траву', yield: [['herb', [1, 2]]], sickle: true, respawn: 150, fx: '#4aa84a' },
   berry:    { label: 'Зібрати ягоди', yield: [['berries', [2, 4]]], respawn: 150, fx: '#8a3ac8' },
+  nest:     { label: 'Забрати яйця', yield: [['egg', [1, 2]]], respawn: 180, fx: '#f0e8d0' },
   mushroom: { label: 'Зібрати гриби', yield: [['mushroom', [1, 3]]], respawn: 150, fx: '#c8603a' },
   fish:     { tool: 'fishing_rod', label: 'Ловити рибу', fish: true, yield: [['fish', [1, 1]]], respawn: 5, fx: '#8ad0f0' },
 };
@@ -37,8 +38,9 @@ function nodeSprites(kind, v) {
   if (kind === 'stone') return { full: rock('#8a8a96', '#7a7a86'), dep: rubble, w: 22, h: 18 };
   const plantFull = { herb: (R) => { for (let i = 0; i < 5; i++) { R(2 + i * 3, 4 + (i % 2) * 2, 2, 8 - (i % 2) * 2, '#2a6a2c'); R(1 + i * 3, 3 + (i % 2) * 2, 4, 3, '#4aa84a'); } R(5, 2, 2, 2, '#f0f0f0'); R(11, 4, 2, 2, '#f0f0f0'); },
     berry: (R) => { disc(R, 8, 8, 6, '#26441e'); disc(R, 7, 7, 5, '#34602a'); [[4, 6], [9, 5], [7, 9], [11, 8], [5, 10]].forEach(([a, b]) => { R(a, b, 2, 2, '#8a3ac8'); R(a, b, 1, 1, '#d8a0ff'); }); },
+    nest: (R) => { disc(R, 8, 9, 6, '#8a6a3a'); disc(R, 8, 8, 5, '#b89a58'); for (let i = 0; i < 8; i++) R(3 + (i * 5) % 10, 5 + (i * 3) % 7, 3, 1, '#6a4a22'); [[5, 7], [8, 6], [10, 8]].forEach(([a, b]) => { R(a, b, 3, 3, '#f4ecd8'); R(a, b, 1, 1, '#fff'); }); },
     mushroom: (R) => { [[3, 6, 6], [9, 7, 5], [6, 3, 4]].forEach(([a, b, w]) => { R(a + 1, b + 2, 2, 5, '#e8dcc0'); R(a - 1, b, w, 3, '#c8503a'); R(a, b, 1, 1, '#fff'); }); R(2, 11, 12, 1, '#2a4a1c'); } }[kind];
-  const plantDep = { herb: (R) => { for (let i = 0; i < 5; i++) R(2 + i * 3, 9, 1, 3, '#3a6a2c'); }, berry: (R) => { disc(R, 8, 8, 6, '#26441e'); disc(R, 7, 7, 5, '#34602a'); }, mushroom: (R) => { [[4, 9], [10, 9]].forEach(([a, b]) => R(a, b, 2, 3, '#b8ac90')); } }[kind];
+  const plantDep = { herb: (R) => { for (let i = 0; i < 5; i++) R(2 + i * 3, 9, 1, 3, '#3a6a2c'); }, berry: (R) => { disc(R, 8, 8, 6, '#26441e'); disc(R, 7, 7, 5, '#34602a'); }, nest: (R) => { disc(R, 8, 9, 6, '#8a6a3a'); disc(R, 8, 8, 5, '#b89a58'); for (let i = 0; i < 8; i++) R(3 + (i * 5) % 10, 5 + (i * 3) % 7, 3, 1, '#6a4a22'); }, mushroom: (R) => { [[4, 9], [10, 9]].forEach(([a, b]) => R(a, b, 2, 3, '#b8ac90')); } }[kind];
   return { full: spr(key, 16, 14, plantFull), dep: spr(key + 'd', 16, 14, plantDep), w: 16, h: 14 };
 }
 ZB.prototype.node = function (tx, ty, kind, v = 0) {

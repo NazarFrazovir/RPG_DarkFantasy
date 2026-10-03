@@ -41,7 +41,7 @@ function doCraft(r) {
   if (r.out.item) { addItem(r.out.item, r.out.n); msg = `${ITEMS[r.out.item].name}${r.out.n > 1 ? ' ×' + r.out.n : ''}`; }
   else if (r.out.potion) { P.potions++; msg = 'Цілюще зілля'; }
   else { const it = genItem(craftIlvl(r), rollRarity(r.out.gear.rar), r.out.gear.slot), got = pickupItem(it); col = RARITY[it.rar].color; msg = it.name + ' · ' + RARITY[it.rar].name + (got ? '' : ' (сумка повна — лежить поруч)'); if (!got) pickups.push({ type: 'item', item: it, x: P.x, y: P.y + 18, vx: 0, vy: 0, t: 1 }); }
-  Sfx.play('level'); burst(P.x, P.y - 6, '#ffd24a', 14, 90, 3, 0.6); return { msg, col };
+  questEvent('craft', r.name); Sfx.play('level'); burst(P.x, P.y - 6, '#ffd24a', 14, 90, 3, 0.6); return { msg, col };
 }
 
 // ---------- Інтерфейс ----------
